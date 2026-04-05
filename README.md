@@ -1,3 +1,11 @@
+---
+title: Invoice Processing Environment
+emoji: 🧾
+colorFrom: green
+colorTo: blue
+sdk: docker
+pinned: false
+---
 # Invoice Processing Environment
 
 An OpenEnv-compatible AI agent environment for invoice processing and accounts payable validation.
