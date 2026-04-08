@@ -149,4 +149,6 @@ def grade_task(task_name:str,extracted:Dict[str,Any],flags:List[str],decision:st
     if decision==task.get("expected_decision",""):
         score+=0.25
 
-    return round(score,2)
+    score=round(score,2)
+    score=min(0.99,max(0.01,score))
+    return score

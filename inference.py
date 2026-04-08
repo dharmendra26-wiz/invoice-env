@@ -108,7 +108,8 @@ def run_task(task_name:str):
             print(f"[STEP] step={step} action=null reward=0.00 done=false error={e}")
             break
 
-    score=max(rewards) if rewards else 0.0
+    score=max(rewards) if rewards else 0.01
+    score=min(0.99,max(0.01,score))
     success=score>=0.7
     rewards_str=",".join([f"{r:.2f}" for r in rewards])
     print(f"[END] success={str(success).lower()} steps={step} score={score:.2f} rewards={rewards_str}")
