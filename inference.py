@@ -9,12 +9,18 @@ HF_TOKEN=os.getenv("HF_TOKEN") or os.getenv("API_KEY","dummy-key")
 ENV_URL=os.getenv("ENV_URL","http://localhost:7860")
 BENCHMARK="invoice-env"
 
-try:
-    from openai import OpenAI
-    client=OpenAI(base_url=API_BASE_URL,api_key=HF_TOKEN)
-except Exception as e:
-    print(f"[ERROR] OpenAI client init failed: {e}",file=sys.stderr)
-    sys.exit(1)
+def llm_call(messages):
+    try:
+        resp=requests.post(
+            f"{API_BASE_URL}/chat/completions",
+            headers={"Authorization":f"Bearer {HF_TOKEN}","Content-Type":"application/json"},
+            json={"model":MODEL_NAME,"messages":messages,"max_tokens":200,"temperature":0.0},
+            timeout=60
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        raise Exception(f"LLM call failed: {e}")
 
 SYSTEM_PROMPT="""You are an accounts payable agent. You process invoices by taking actions.
 
@@ -65,13 +71,7 @@ def run_task(task_name:str):
 
     while not done and step<20:
         try:
-            completion=client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=messages,
-                max_tokens=200,
-                temperature=0.0
-            )
-            action_str=completion.choices[0].message.content.strip()
+            action_str=llm_call(messages)
 
             if "```" in action_str:
                 action_str=action_str.split("```")[1]
