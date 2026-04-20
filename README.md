@@ -21,7 +21,7 @@ This environment simulates a real-world accounts payable workflow where an AI ag
 ## Action Space
 
 | Action Type | Fields | Description |
-|---|---|---|
+|----|----|----|
 | `extract` | `field_name`, `field_value` | Extract a field from the invoice |
 | `match_po` | none | Match invoice total against PO |
 | `flag` | `field_name` | Flag an issue (price_mismatch, duplicate_invoice, tax_mismatch) |
