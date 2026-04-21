@@ -1,36 +1,49 @@
 name: invoice-env
 version: 1.0.0
 description: >
-  An AI agent environment for invoice processing and accounts payable validation.
-  The agent must extract fields, detect discrepancies, match purchase orders,
-  and make approve/reject decisions on invoices.
+  An Enterprise Multi-App AI agent environment. 
+  The agent must read emails to find invoices, query an ERP system for Purchase Orders,
+  handle schema drift, extract fields, and make approve/reject decisions.
 
 author: dharmendra
 tags:
   - invoice
   - finance
-  - document-processing
-  - accounts-payable
+  - multi-agent
+  - enterprise-workflow
+  - schema-drift
 
 tasks:
   - name: easy
-    description: Extract all fields from a clean invoice and match to purchase order
+    description: Read email to get invoice, query ERP to get PO, extract all fields and approve.
     max_steps: 20
     reward_range: [0.0, 1.0]
 
   - name: medium
-    description: Detect line item price mismatch between invoice and purchase order
+    description: Read email, query ERP, and detect line item price mismatch.
     max_steps: 20
     reward_range: [0.0, 1.0]
 
   - name: hard
-    description: Detect duplicate invoice, wrong tax calculation
+    description: Multi-App workflow with Schema Drift. ERP requires tax_id instead of vendor_name. Detect duplicate invoice.
+    max_steps: 20
+    reward_range: [0.0, 1.0]
+
+  - name: expert_negotiation
+    description: Multi-Agent interaction. Negotiate with vendor via email to resolve a price discrepancy before approving.
+    max_steps: 25
+    reward_range: [0.0, 1.0]
+
+  - name: expert_fraud
+    description: Fraud detection. Invoice looks valid but comes from a lookalike email domain. Agent must flag and reject.
     max_steps: 20
     reward_range: [0.0, 1.0]
 
 observation_space:
+  inbox_status: array
+  email_content: string
   invoice_text: string
-  po_data: object
+  erp_response: object
   extracted_fields: object
   flags: array
   current_step: integer
@@ -39,7 +52,7 @@ observation_space:
 action_space:
   action_type:
     type: string
-    values: [extract, match_po, flag, approve, reject, match_duplicate]
+    values: [read_email, query_erp, extract, match_po, flag, approve, reject, match_duplicate, send_email]
   field_name:
     type: string
     optional: true
@@ -47,6 +60,21 @@ action_space:
     type: any
     optional: true
   reason:
+    type: string
+    optional: true
+  email_id:
+    type: string
+    optional: true
+  api_endpoint:
+    type: string
+    optional: true
+  api_payload:
+    type: object
+    optional: true
+  email_subject:
+    type: string
+    optional: true
+  email_body:
     type: string
     optional: true
 

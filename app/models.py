@@ -16,10 +16,17 @@ class Action(BaseModel):
     field_name:Optional[str]=None
     field_value:Optional[Any]=None
     reason:Optional[str]=None
+    api_endpoint:Optional[str]=None
+    api_payload:Optional[Dict[str,Any]]=None
+    email_id:Optional[str]=None
+    email_subject:Optional[str]=None
+    email_body:Optional[str]=None
 
 class Observation(BaseModel):
-    invoice_text:str
-    po_data:Optional[Dict[str,Any]]=None
+    inbox_status:List[Dict[str,Any]]=[]
+    email_content:Optional[str]=None
+    invoice_text:Optional[str]=None
+    erp_response:Optional[Dict[str,Any]]=None
     extracted_fields:Dict[str,Any]={}
     flags:List[str]=[]
     current_step:int=0
