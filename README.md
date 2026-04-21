@@ -1,33 +1,37 @@
 ---
-title: Invoice Processing Environment
-emoji: 🧾
-colorFrom: green
+title: Enterprise Multi-App AI Simulator
+emoji: 🏢
+colorFrom: purple
 colorTo: blue
 sdk: docker
 pinned: false
 ---
-# Invoice Processing Environment
+# Enterprise Multi-App AI Simulator 🏢
 
-An OpenEnv-compatible AI agent environment for invoice processing and accounts payable validation.
+A cutting-edge, OpenEnv-compatible RL/Agent training environment built specifically for the **Meta Hackathon Grand Finale**. This environment models complex, messy, real-world enterprise workflows.
 
-## Description
+Instead of parsing static text, the AI agent is dropped into an enterprise system where it must interact across multiple applications, handle unexpected system changes, and communicate with external agents.
 
-This environment simulates a real-world accounts payable workflow where an AI agent must:
-- Extract structured fields from invoice text
-- Match invoices against purchase orders
-- Detect discrepancies (price mismatches, duplicate invoices, tax errors)
-- Make approve/reject decisions
+## 🏆 Hackathon Themes Targeted
+1. **Theme #3.1 (World Modeling - Professional Tasks)**: Simulates a multi-application enterprise environment (Email Inbox + ERP Database).
+2. **Scaler AI Labs Bonus (Multi-App Workflows)**: The agent must bridge data between an unstructured Email inbox and a structured ERP API.
+3. **Patronus AI Bonus (Schema Drift)**: The ERP API changes its schema mid-workflow, forcing the agent to adapt.
+4. **Theme #1 (Multi-Agent Interactions)**: The agent must negotiate with a simulated vendor via email to resolve discrepancies.
+5. **Theme #2 (Safety & Security)**: Tests the agent's ability to detect sophisticated phishing/lookalike domain fraud.
 
 ## Action Space
 
+The agent has a rich, multi-app action space:
+
 | Action Type | Fields | Description |
-|----|----|----|
-| `extract` | `field_name`, `field_value` | Extract a field from the invoice |
-| `match_po` | none | Match invoice total against PO |
-| `flag` | `field_name` | Flag an issue (price_mismatch, duplicate_invoice, tax_mismatch) |
-| `match_duplicate` | none | Check if invoice was previously processed |
-| `approve` | none | Approve the invoice |
-| `reject` | none | Reject the invoice |
+|---|---|---|
+| `read_email` | `email_id` | Open an email from the inbox |
+| `query_erp` | `api_endpoint`, `api_payload` | Query the company ERP database |
+| `extract` | `field_name`, `field_value` | Extract data to internal memory |
+| `match_po` | none | Cross-reference invoice with ERP PO |
+| `send_email` | `email_id`, `email_subject`, `email_body` | Email a vendor to negotiate / ask for corrections |
+| `flag` | `field_name` | Flag an issue (fraud, price_mismatch, duplicate_invoice) |
+| `approve` / `reject` | none | Final workflow decision |
 
 ## Observation Space
 
@@ -44,39 +48,16 @@ This environment simulates a real-world accounts payable workflow where an AI ag
 
 | Task | Difficulty | Description |
 |---|---|---|
-| `easy` | Easy | Extract fields from clean invoice, match PO, approve |
-| `medium` | Medium | Detect price mismatch between invoice and PO |
-| `hard` | Hard | Detect duplicate invoice + tax miscalculation |
+| `easy` | Easy | Read email, query ERP, extract fields, approve. |
+| `medium` | Medium | Read email, query ERP, detect a subtle price mismatch. |
+| `hard` | Hard | **Schema Drift**. ERP rejects standard query and requires a new parameter (`tax_id`). |
+| `expert_negotiation`| Expert | **Multi-Agent**. Agent finds a mismatch, uses `send_email` to negotiate with vendor, environment dynamically generates a response email with corrected invoice. |
+| `expert_fraud` | Expert | **Security**. Perfect invoice, but sender email is a phishing lookalike (`@techsuppIies.com`). Agent must flag as fraud. |
 
-## Reward Function
-
-- Correct field extraction: +0.07 per field
-- Wrong field value: -0.02
-- Correct flag raised: +0.12
-- Wrong flag: -0.05
-- Successful PO match: +0.10
-- Final grader score: up to 1.0 (based on fields + flags + decision)
-
-## Baseline Scores
-
-| Task | Score |
-|---|---|
-| easy | ~0.85 |
-| medium | ~0.70 |
-| hard | ~0.55 |
-
-## Setup
+## Setup & Running
 ```bash
 pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 7860
-```
-
-## Run Inference
-```bash
-export HF_TOKEN=your_token_here
-export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
-python inference.py
 ```
 
 ## Docker
@@ -93,4 +74,3 @@ docker run -p 7860:7860 invoice-env
 - `GET /tasks` — List all tasks
 - `GET /health` — Health check
 - `GET /docs` — Interactive API documentation
- 
