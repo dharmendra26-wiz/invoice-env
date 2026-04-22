@@ -24,10 +24,9 @@ env/
 *.swp
 *.swo
 
-# Training outputs (keep reward_curves.png and training_results.json in repo)
-# Uncomment below if you don't want them tracked:
-# reward_curves.png
-# training_results.json
+# Training outputs
+reward_curves.png
+training_results.json
 
 # uv lockfile artifacts
 uv.lock
