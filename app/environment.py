@@ -1,11 +1,12 @@
 from typing import Dict,Any,Optional
 from app.models import Action,Observation,Reward,StepResult
-from app.tasks import TASKS,grade_task
+from app.tasks import generate_task,grade_task
 
 class InvoiceEnvironment:
-    def __init__(self,task_name:str="easy"):
+    def __init__(self,task_name:str="easy",seed:int=None):
         self.task_name=task_name
-        self.task=TASKS[task_name]
+        self.seed=seed
+        self.task=generate_task(task_name,seed=seed)
         self.extracted_fields:Dict[str,Any]={}
         self.flags=[]
         self.decision:Optional[str]=None
@@ -21,6 +22,8 @@ class InvoiceEnvironment:
         self.negotiated=False
 
     def reset(self)->Observation:
+        # Regenerate randomised task data on every reset
+        self.task=generate_task(self.task_name,seed=self.seed)
         self.extracted_fields={}
         self.flags=[]
         self.decision=None
@@ -116,12 +119,17 @@ class InvoiceEnvironment:
                     if action.field_name in gt:
                         expected=gt[action.field_name]
                         if isinstance(expected,float):
-                            if abs(float(action.field_value)-expected)<0.01:
-                                reward=0.07
-                                message=f"Correct extraction of {action.field_name}"
-                            else:
+                            try:
+                                val = float(action.field_value)
+                                if abs(val-expected)<0.01:
+                                    reward=0.07
+                                    message=f"Correct extraction of {action.field_name}"
+                                else:
+                                    reward=-0.02
+                                    message=f"Wrong value for {action.field_name}"
+                            except (ValueError, TypeError):
                                 reward=-0.02
-                                message=f"Wrong value for {action.field_name}"
+                                message=f"Wrong value for {action.field_name} (expected float)"
                         else:
                             if str(action.field_value).strip()==str(expected).strip():
                                 reward=0.07
@@ -176,7 +184,8 @@ class InvoiceEnvironment:
                 self.flags,
                 self.decision,
                 self.erp_queried,
-                self.negotiated
+                self.negotiated,
+                task_dict=self.task
             )
             reward=final_score
             self.done=True
@@ -217,24 +226,34 @@ class InvoiceEnvironment:
 
         self.total_reward+=reward
 
+        # Expose final_score in info on terminal steps
+        step_final_score = None
+
         # force end at step 30
         if self.current_step>=30 and not self.done:
             self.done=True
-            final_score=grade_task(
+            step_final_score=grade_task(
                 self.task_name,
                 self.extracted_fields,
                 self.flags,
                 self.decision or "",
                 self.erp_queried,
-                self.negotiated
+                self.negotiated,
+                task_dict=self.task
             )
-            message=f"Max steps reached. Final score: {final_score}"
+            message=f"Max steps reached. Final score: {step_final_score}"
+
+        # Also expose final_score from approve/reject
+        if action.action_type in ("approve","reject") and self.done:
+            step_final_score = reward  # reward IS final_score for terminal actions
 
         return StepResult(
             observation=self._get_obs(message),
             reward=round(reward,2),
             done=self.done,
-            info={"step":self.current_step,"total_reward":round(self.total_reward,2)}
+            info={"step":self.current_step,
+                  "total_reward":round(self.total_reward,2),
+                  "final_score":step_final_score}
         )
 
     def _get_obs(self,message:str)->Observation:
