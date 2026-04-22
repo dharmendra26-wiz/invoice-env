@@ -12,4 +12,5 @@ EXPOSE 7860
 
 ENV PYTHONPATH=/app
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Launch the Gradio demo UI (visible on HuggingFace Spaces)
+CMD ["python", "app/demo.py"]
