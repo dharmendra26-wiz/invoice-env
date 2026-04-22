@@ -186,20 +186,25 @@ def run_episode_local(task_name: str, episode: int, total_episodes: int) -> floa
 # ── HTTP episode runner ───────────────────────────────────────────────────────
 def run_episode_http(task_name: str, episode: int, total_episodes: int) -> float:
     try:
-        obs = requests.post(f"{ENV_URL}/reset",
-                            params={"task_name": task_name}, timeout=30).json()
+        resp = requests.post(
+            f"{ENV_URL}/reset", params={"task_name": task_name}, timeout=30
+        ).json()
+        session_id = resp["session_id"]
+        obs        = resp["observation"]
     except Exception as e:
         print(f"  Reset failed: {e}")
         return 0.0
 
     done, step, best_reward = False, 0, 0.0
-    result = {}
     while not done and step < 30:
         action = get_action(task_name, obs, step, episode, total_episodes)
         try:
-            result = requests.post(f"{ENV_URL}/step",
-                                   params={"task_name": task_name},
-                                   json=action, timeout=30).json()
+            result = requests.post(
+                f"{ENV_URL}/step",
+                params={"session_id": session_id},   # ← unique session, never collides
+                json=action,
+                timeout=30,
+            ).json()
             obs    = result["observation"]
             reward = result["reward"]
             done   = result["done"]

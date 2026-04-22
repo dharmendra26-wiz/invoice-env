@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional,List,Dict,Any
+from typing import Optional, List, Dict, Any
 
 class InvoiceField(BaseModel):
     vendor_name:str
@@ -37,7 +37,13 @@ class Reward(BaseModel):
     reason:str
 
 class StepResult(BaseModel):
-    observation:Observation
-    reward:float
-    done:bool
-    info:Dict[str,Any]={}
+    observation: Observation
+    reward: float
+    done: bool
+    info: Dict[str, Any] = {}
+
+
+class ResetResponse(BaseModel):
+    """Returned by POST /reset.  Carry session_id on every subsequent /step call."""
+    session_id: str
+    observation: Observation
