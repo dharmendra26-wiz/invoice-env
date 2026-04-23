@@ -340,11 +340,13 @@ def _gen_expert_fraud() -> dict:
     items = _build_line_items(v, n=1)
     sub, tax, total = _totals(items, tax_rate)
     
-    # Fraud: generate a unique random IBAN per episode so LLMs cannot memorize it
-    import string as _string
-    _cc = random.choice(["CH", "LI", "AT", "NO", "SE"])
-    _digits = "".join(random.choices(_string.digits, k=18))
-    fraud_iban = f"{_cc}{''.join(random.choices(_string.digits, k=2))}{_digits}"
+    # Fraud: generate a unique, truly random IBAN per episode.
+    # Using `secrets` (OS-level entropy) so random.seed() from module import cannot fix this value.
+    import secrets, string as _string
+    _cc = secrets.choice(["CH", "LI", "AT", "NO", "SE", "PL", "RO", "CZ"])
+    _check = "".join(secrets.choice(_string.digits) for _ in range(2))
+    _bban  = "".join(secrets.choice(_string.digits) for _ in range(18))
+    fraud_iban = f"{_cc}{_check}{_bban}"
     
     body = _invoice_body(v["name"], inv_num, _fmt(inv_date), _fmt(due_date),
                          items, sub, tax, total, tax_rate, iban=fraud_iban)

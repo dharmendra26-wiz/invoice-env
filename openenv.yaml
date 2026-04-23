@@ -86,3 +86,30 @@ endpoints:
 runtime:
   port: 7860
   health_check: GET /health
+
+rubric:
+  - name: multi_app_floor
+    description: >
+      Hard floor of 0.10 if the agent never queries the ERP system.
+      Enforces the multi-app workflow requirement.
+    weight: 0.0
+
+  - name: field_extraction
+    description: >
+      40% of the final score. Agent must correctly extract all 8 structured
+      fields from unstructured invoice email text: vendor_name, invoice_number,
+      invoice_date, due_date, subtotal, tax_amount, total_amount, iban.
+    weight: 0.40
+
+  - name: flags_and_negotiation
+    description: >
+      30% of the final score. Agent must raise the correct flags for each task
+      (price_mismatch, tax_mismatch, duplicate_invoice, fraud, fraud_iban) or
+      complete vendor negotiation for the expert_negotiation task.
+    weight: 0.30
+
+  - name: final_decision
+    description: >
+      30% of the final score. Agent must make the correct terminal decision:
+      approve for valid invoices, reject for any invoice with raised flags.
+    weight: 0.30
