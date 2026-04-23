@@ -340,8 +340,11 @@ def _gen_expert_fraud() -> dict:
     items = _build_line_items(v, n=1)
     sub, tax, total = _totals(items, tax_rate)
     
-    # Fraud: use a different IBAN than the vendor's actual IBAN
-    fraud_iban = "CH9300000000000000000" # attacker's IBAN
+    # Fraud: generate a unique random IBAN per episode so LLMs cannot memorize it
+    import string as _string
+    _cc = random.choice(["CH", "LI", "AT", "NO", "SE"])
+    _digits = "".join(random.choices(_string.digits, k=18))
+    fraud_iban = f"{_cc}{''.join(random.choices(_string.digits, k=2))}{_digits}"
     
     body = _invoice_body(v["name"], inv_num, _fmt(inv_date), _fmt(due_date),
                          items, sub, tax, total, tax_rate, iban=fraud_iban)

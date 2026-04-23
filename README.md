@@ -166,6 +166,31 @@ docker run -p 7860:7860 enterprise-ap-env
 
 ---
 
+## Try It Interactively
+
+Once the server is running (see Quick Start above), you can drive the environment with plain HTTP calls. The full Swagger UI is available at **`http://localhost:7860/docs`**.
+
+Here is a complete `expert_fraud` episode in three curl commands:
+
+```bash
+# 1. Start a new episode
+curl -s -X POST "http://localhost:7860/reset?task_name=expert_fraud" | python -m json.tool
+
+# 2. Read the email (note the sender — is it a real domain?)
+curl -s -X POST "http://localhost:7860/step?session_id=<YOUR_SESSION_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"action_type": "read_email", "email_id": "email_006"}' | python -m json.tool
+
+# 3. Query ERP and compare IBANs — then flag and reject
+curl -s -X POST "http://localhost:7860/step?session_id=<YOUR_SESSION_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"action_type": "query_erp", "api_endpoint": "/api/v1/po", "api_payload": {"vendor_name": "TechSupplies Inc."}}' | python -m json.tool
+```
+
+> Replace `<YOUR_SESSION_ID>` with the `session_id` returned by the `/reset` call.
+
+---
+
 ## Project Structure
 
 ```
@@ -190,7 +215,7 @@ enterprise-ap-env/
 ### Rule-Based Reference Agent (`train.py`)
 
 A deterministic rule-based agent validates environment correctness across all 5 tasks over 60 episodes.
-All tasks achieve **0.94 final average reward**, confirming the reward shaping works as designed.
+All tasks exceed their target thresholds, confirming the reward shaping works as designed.
 
 ![Reward Curves](./reward_curves.png)
 
