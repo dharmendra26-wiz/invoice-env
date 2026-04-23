@@ -16,22 +16,32 @@ Environment variables:
 import os, sys, json, re, argparse, requests
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME   = os.getenv("MODEL_NAME",   "Qwen/Qwen2.5-72B-Instruct")
+MODEL_NAME   = os.getenv("MODEL_NAME",   "meta-llama/Llama-3.1-8B-Instruct")
 HF_TOKEN     = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "dummy-key")
 ENV_URL      = os.getenv("ENV_URL",      "http://localhost:7860")
 BENCHMARK    = "enterprise-ap-env"
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
-def llm_call(messages: list) -> str:
-    resp = requests.post(
-        f"{API_BASE_URL}/chat/completions",
-        headers={"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"},
-        json={"model": MODEL_NAME, "messages": messages,
-              "max_tokens": 300, "temperature": 0.0},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+def llm_call(messages: list, retries: int = 4) -> str:
+    import time
+    wait = 15  # seconds between retries
+    for attempt in range(retries + 1):
+        resp = requests.post(
+            f"{API_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"},
+            json={"model": MODEL_NAME, "messages": messages,
+                  "max_tokens": 300, "temperature": 0.0},
+            timeout=60,
+        )
+        if resp.status_code in (402, 429) and attempt < retries:
+            print(f"  [rate-limit {resp.status_code}] waiting {wait}s before retry {attempt+1}/{retries}...")
+            time.sleep(wait)
+            wait = min(wait * 2, 120)  # cap at 2 min
+            continue
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+    resp.raise_for_status()  # final raise if all retries exhausted
+
 
 
 # ── System prompt ─────────────────────────────────────────────────────────────
@@ -40,18 +50,25 @@ You interact with a multi-app environment step by step.
 
 WORKFLOW:
 1. Read emails from your inbox to find the invoice.
-2. Query the ERP system to fetch the matching Purchase Order (PO).
+2. Query the ERP system to fetch the matching Purchase Order (PO) using action query_erp.
    - If the ERP returns a SCHEMA DRIFT error, retry with the field it asks for (e.g. vendor_tax_id).
-3. Extract all invoice fields from the email content.
-4. Compare invoice vs PO. Flag any mismatches.
-   - price_mismatch  → invoice line item prices differ from PO
-   - tax_mismatch    → claimed tax rate differs from PO
-   - duplicate_invoice → same invoice number was processed before
-   - fraud          → email sender domain looks like a lookalike (e.g. "techsuppIies.com" vs "techsupplies.com")
-5. For expert_negotiation tasks: if invoice total > PO approved_amount, send an email to the vendor.
-6. Make a final decision: approve or reject.
+3. Extract all invoice fields from the email content one by one using action extract.
+4. After extracting ALL 7 fields, check for issues:
+   - price_mismatch  -> invoice total does NOT match PO approved_amount: use flag action
+   - tax_mismatch    -> claimed tax rate is wrong: use flag action
+   - duplicate_invoice -> invoice already processed: use match_duplicate action first, then flag
+   - fraud           -> sender email domain is a lookalike (e.g. "techsuppIies.com" not "techsupplies.com"): use flag action
+5. For expert_negotiation: if invoice total > PO approved_amount, send email to vendor.
+6. Make EXACTLY ONE final decision: approve or reject. Never use any other action types.
 
-ACTIONS — respond with ONLY a JSON object, no explanation:
+CRITICAL RULES:
+- The ONLY valid action_type values are: read_email, query_erp, extract, flag, match_duplicate, send_email, approve, reject.
+- Do NOT invent actions like compare, unflag, check_duplicate, or anything else.
+- If the invoice matches the PO and no flags apply, output {"action_type": "approve"} immediately.
+- If any flag was raised, output {"action_type": "reject"} immediately.
+- Never repeat an action you already took.
+
+ACTIONS:
 
 Read an email:
   {"action_type": "read_email", "email_id": "<id from inbox>"}
@@ -60,24 +77,24 @@ Query ERP:
   {"action_type": "query_erp", "api_endpoint": "/api/v1/po", "api_payload": {"vendor_name": "Acme Corp"}}
   {"action_type": "query_erp", "api_endpoint": "/api/v2/po", "api_payload": {"vendor_tax_id": "XX-1234-56"}}
 
-Extract a field:
+Extract a field (one at a time):
   {"action_type": "extract", "field_name": "vendor_name", "field_value": "Acme Corp"}
 
 Flag an issue:
   {"action_type": "flag", "field_name": "price_mismatch"}
 
-Check duplicate:
+Check for duplicate invoice:
   {"action_type": "match_duplicate"}
 
-Send email to vendor:
-  {"action_type": "send_email", "email_id": "vendor@domain.com", "email_subject": "Mismatch", "email_body": "Please clarify."}
+Send email to vendor (expert_negotiation only):
+  {"action_type": "send_email", "email_id": "vendor@domain.com", "email_subject": "Mismatch", "email_body": "Please send corrected invoice."}
 
-Final decision:
+Final decision (REQUIRED — ends the episode):
   {"action_type": "approve"}
   {"action_type": "reject"}
 
 Fields to extract: vendor_name, invoice_number, invoice_date, due_date, subtotal, tax_amount, total_amount
-Respond with ONE JSON action at a time. No markdown fences."""
+Respond with ONE JSON action at a time. No markdown fences. No explanation."""
 
 
 # ── JSON extractor (robust) ───────────────────────────────────────────────────
@@ -95,8 +112,10 @@ def parse_action(text: str) -> dict:
 def run_task(task_name: str) -> float:
     # Reset environment
     try:
-        obs = requests.post(f"{ENV_URL}/reset",
-                            params={"task_name": task_name}, timeout=30).json()
+        reset_resp = requests.post(f"{ENV_URL}/reset",
+                                   params={"task_name": task_name}, timeout=30).json()
+        session_id = reset_resp["session_id"]
+        obs        = reset_resp["observation"]
     except Exception as e:
         print(f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}")
         print(f"[STEP] step=1 action=null reward=0.00 done=true error={e}")
@@ -106,7 +125,7 @@ def run_task(task_name: str) -> float:
     print(f"[START] task={task_name} env={BENCHMARK} model={MODEL_NAME}")
 
     # Build initial context for LLM
-    inbox = obs.get("inbox_status", [])
+    inbox = obs.get("observation", obs).get("inbox_status", obs.get("inbox_status", []))
     inbox_str = "\n".join(
         f"  [{e['id']}] From: {e['sender']} | Subject: {e['subject']}"
         for e in inbox
@@ -138,7 +157,7 @@ def run_task(task_name: str) -> float:
         # --- send to environment ---
         try:
             result = requests.post(f"{ENV_URL}/step",
-                                   params={"task_name": task_name},
+                                   params={"session_id": session_id},
                                    json=action, timeout=30).json()
         except Exception as e:
             step += 1
@@ -209,7 +228,7 @@ def main():
 
     print("\n=== FINAL SCORES ===")
     for t, s in scores.items():
-        status = "✓ PASS" if s >= 0.7 else "✗ FAIL"
+        status = "PASS" if s >= 0.7 else "FAIL"
         print(f"  {t:<22} {s:.2f}  {status}")
     avg = sum(scores.values()) / len(scores)
     print(f"  {'AVERAGE':<22} {avg:.2f}")
