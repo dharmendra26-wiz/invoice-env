@@ -13,6 +13,4 @@ demo.launch(
     server_name="0.0.0.0",
     server_port=7860,
     share=False,
-    css=CSS,
-    theme=gr.themes.Default(font=["Inter", "sans-serif"], primary_hue="blue", neutral_hue="gray"),
 )
