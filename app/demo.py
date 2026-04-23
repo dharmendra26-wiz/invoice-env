@@ -266,7 +266,7 @@ TASK_DESCRIPTIONS = {
 }
 
 def build_demo():
-    with gr.Blocks(title="Enterprise AP-Env Demo") as demo:
+    with gr.Blocks(title="Enterprise AP-Env Demo", css=CSS) as demo:
 
         gr.HTML(
             "<div style='text-align:center;padding:20px 0 8px;'>"
@@ -363,6 +363,4 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=8080,
         share=False,
-        css=CSS,
-        theme=gr.themes.Default(font=["Inter", "sans-serif"], primary_hue="blue", neutral_hue="gray"),
     )
