@@ -4,11 +4,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Pin huggingface_hub FIRST so pip's resolver doesn't upgrade it
-# when installing gradio (gradio 4.44 requires huggingface_hub<0.26)
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir "huggingface_hub==0.24.7" \
- && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
