@@ -13,7 +13,7 @@ from app.environment import InvoiceEnvironment
 from app.models import Action
 
 
-# -- Email parser (same as train.py) -------------------------------------------
+# -- Email parser --------------------------------------------------------------
 def _parse_email(body):
     parsed = {}
     patterns = {
@@ -40,7 +40,7 @@ def _parse_tax_id(body):
     return m.group(1).strip() if m else ""
 
 
-# -- Rule-based agent (mirrors train.py) ---------------------------------------
+# -- Rule-based agent ----------------------------------------------------------
 def _agent_action(task_name, obs, noise=0.0):
     extracted = obs.get("extracted_fields", {})
     flags     = obs.get("flags", [])
@@ -54,7 +54,6 @@ def _agent_action(task_name, obs, noise=0.0):
             return {"action_type": "read_email", "email_id": inbox[0]["id"]}
         return {"action_type": "reject"}
 
-    # expert_negotiation: negotiate BEFORE extracting
     if task_name == "expert_negotiation":
         if len(inbox) <= 1:
             if make_err: return {"action_type": "reject"}
@@ -133,37 +132,30 @@ def run_episode(task_name):
 
 
 # -- Rendering helpers ---------------------------------------------------------
-ACTION_ICONS = {
-    "read_email": "MAIL", "query_erp": "ERP", "extract": "FIELD",
-    "flag": "FLAG", "match_duplicate": "DUP", "send_email": "SEND",
-    "approve": "OK", "reject": "NO",
-}
-
 def _action_label(action):
-    icon = ACTION_ICONS.get(action["action_type"], ">")
-    base = f"[{icon}] {action['action_type']}"
-    if action.get("field_name"):  base += f" -> {action['field_name']}"
+    base = action["action_type"]
+    if action.get("field_name"):  base += f"  >  {action['field_name']}"
     if action.get("field_value"): base += f" = {action['field_value']}"
-    if action.get("email_id"):    base += f" -> {action['email_id']}"
+    if action.get("email_id"):    base += f"  >  {action['email_id']}"
     return base
 
 def _reward_color(r):
-    if r > 0.08:  return "#4CAF50"
-    if r > 0:     return "#8BC34A"
-    if r == 0:    return "#9E9E9E"
-    return "#F44336"
+    if r > 0.08:  return "#2e7d32"   # green
+    if r > 0:     return "#558b2f"   # light green
+    if r == 0:    return "#757575"   # grey
+    return "#c62828"                 # red
 
 def _score_badge(score):
     if score is None: return ""
-    color = "#4CAF50" if score >= 0.7 else "#FF9800" if score >= 0.4 else "#F44336"
+    color = "#2e7d32" if score >= 0.7 else "#f57f17" if score >= 0.4 else "#c62828"
     label = "PASS" if score >= 0.7 else "PARTIAL" if score >= 0.4 else "FAIL"
-    return (f"<div style='text-align:center;margin-top:12px;'>"
-            f"<span style='background:{color};color:white;padding:10px 28px;"
-            f"border-radius:24px;font-size:1.4em;font-weight:700;'>"
-            f"Final Score: {score:.2f} - {label}</span></div>")
+    return (f"<div style='text-align:center;margin-top:16px;'>"
+            f"<span style='background:{color};color:#ffffff;padding:10px 28px;"
+            f"border-radius:6px;font-size:1.3em;font-weight:700;letter-spacing:0.5px;'>"
+            f"Score: {score:.2f}  -  {label}</span></div>")
 
 
-# -- Main demo function -------------------------------------------------------
+# -- Main demo function --------------------------------------------------------
 def run_demo(task_name):
     steps = run_episode(task_name)
     log_lines, inbox_html, email_html = [], "", ""
@@ -175,113 +167,113 @@ def run_demo(task_name):
         r_sign = f"+{r:.2f}" if r >= 0 else f"{r:.2f}"
 
         log_lines.append(
-            f"<div style='margin:4px 0;padding:6px 10px;background:#1e1e2e;"
-            f"border-radius:6px;border-left:3px solid {color};"
-            f"font-family:monospace;font-size:0.88em;'>"
-            f"<span style='color:#888;'>Step {s['step']:02d}</span>&nbsp;&nbsp;"
-            f"<span style='color:#cdd6f4;'>{_action_label(action)}</span>"
-            f"<span style='float:right;color:{color};font-weight:bold;'>"
+            f"<div style='margin:4px 0;padding:9px 14px;"
+            f"background:#ffffff;"
+            f"border-radius:5px;border-left:4px solid {color};"
+            f"font-family:monospace;font-size:0.90em;border:1px solid #e0e0e0;'>"
+            f"<span style='color:#9e9e9e;font-size:0.84em;'>Step {s['step']:02d}</span>&nbsp;&nbsp;"
+            f"<span style='color:#212121;font-weight:600;'>{_action_label(action)}</span>"
+            f"<span style='float:right;color:{color};font-weight:700;font-size:1em;'>"
             f"{r_sign}</span><br>"
-            f"<span style='color:#6c7086;font-size:0.85em;'>"
+            f"<span style='color:#616161;font-size:0.87em;'>"
             f"{obs['message']}</span></div>"
         )
 
         inbox = obs.get("inbox_status", [])
         if inbox:
             rows = "".join(
-                f"<tr><td style='padding:4px 10px;color:#89b4fa;'>{e['id']}</td>"
-                f"<td style='padding:4px 10px;'>{e['sender']}</td>"
-                f"<td style='padding:4px 10px;'>{e['subject']}</td></tr>"
+                f"<tr><td style='padding:4px 10px;color:#1565c0;font-weight:600;'>{e['id']}</td>"
+                f"<td style='padding:4px 10px;color:#424242;'>{e['sender']}</td>"
+                f"<td style='padding:4px 10px;color:#424242;'>{e['subject']}</td></tr>"
                 for e in inbox
             )
             inbox_html = (
-                f"<table style='width:100%;border-collapse:collapse;"
-                f"font-size:0.85em;color:#cdd6f4;'>"
-                f"<tr style='color:#6c7086;'><th>ID</th><th>From</th>"
-                f"<th>Subject</th></tr>{rows}</table>"
+                f"<table style='width:100%;border-collapse:collapse;font-size:0.85em;'>"
+                f"<tr style='color:#757575;font-weight:600;'><th style='text-align:left;padding:4px 10px;'>ID</th>"
+                f"<th style='text-align:left;padding:4px 10px;'>From</th>"
+                f"<th style='text-align:left;padding:4px 10px;'>Subject</th></tr>{rows}</table>"
             )
 
         if obs.get("email_content"):
             email_html = (
-                f"<pre style='background:#1e1e2e;color:#cdd6f4;padding:12px;"
-                f"border-radius:8px;font-size:0.82em;white-space:pre-wrap;"
-                f"max-height:200px;overflow-y:auto;'>{obs['email_content']}</pre>"
+                f"<pre style='background:#f5f5f5;color:#212121;padding:12px;"
+                f"border-radius:5px;font-size:0.82em;white-space:pre-wrap;"
+                f"max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;'>{obs['email_content']}</pre>"
             )
 
         if obs.get("erp_response"):
             ej = json.dumps(obs["erp_response"], indent=2)
-            ec = "#F44336" if "error" in obs["erp_response"] else "#4CAF50"
+            ec = "#c62828" if "error" in obs["erp_response"] else "#2e7d32"
             erp_html = (
-                f"<pre style='background:#1e1e2e;color:{ec};padding:12px;"
-                f"border-radius:8px;font-size:0.82em;white-space:pre-wrap;"
-                f"max-height:200px;overflow-y:auto;'>{ej}</pre>"
+                f"<pre style='background:#f5f5f5;color:{ec};padding:12px;"
+                f"border-radius:5px;font-size:0.82em;white-space:pre-wrap;"
+                f"max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;'>{ej}</pre>"
             )
 
         ef = obs.get("extracted_fields", {})
         if ef:
             rows = "".join(
-                f"<tr><td style='padding:3px 10px;color:#a6e3a1;'>{k}</td>"
-                f"<td style='padding:3px 10px;color:#cdd6f4;'>{v}</td></tr>"
+                f"<tr><td style='padding:3px 10px;color:#1565c0;font-weight:600;'>{k}</td>"
+                f"<td style='padding:3px 10px;color:#424242;'>{v}</td></tr>"
                 for k, v in ef.items()
             )
             fields_html = (
-                f"<table style='width:100%;border-collapse:collapse;"
-                f"font-size:0.85em;'><tr style='color:#6c7086;'>"
-                f"<th>Field</th><th>Value</th></tr>{rows}</table>"
+                f"<table style='width:100%;border-collapse:collapse;font-size:0.85em;'>"
+                f"<tr style='color:#757575;font-weight:600;'>"
+                f"<th style='text-align:left;padding:3px 10px;'>Field</th>"
+                f"<th style='text-align:left;padding:3px 10px;'>Value</th></tr>{rows}</table>"
             )
 
         fl = obs.get("flags", [])
         if fl:
             badges = " ".join(
-                f"<span style='background:#F44336;color:white;padding:3px 10px;"
-                f"border-radius:12px;font-size:0.82em;margin:2px;'>"
+                f"<span style='background:#c62828;color:#ffffff;padding:3px 10px;"
+                f"border-radius:4px;font-size:0.82em;margin:2px;font-weight:600;'>"
                 f"FLAG: {f}</span>" for f in fl
             )
             flags_html = f"<div style='padding:8px;'>{badges}</div>"
         else:
-            flags_html = ("<span style='color:#6c7086;font-size:0.85em;'>"
-                          "No flags raised yet.</span>")
+            flags_html = "<span style='color:#9e9e9e;font-size:0.85em;'>No flags raised yet.</span>"
 
         if s["final_score"] is not None:
             score_html = _score_badge(s["final_score"])
 
     log_html = (
-        "<div style='background:#181825;border-radius:10px;padding:10px;"
-        "max-height:380px;overflow-y:auto;'>" + "\n".join(log_lines) + "</div>"
+        "<div style='background:#fafafa;border:1px solid #e0e0e0;border-radius:8px;"
+        "padding:12px;max-height:420px;overflow-y:auto;'>" + "\n".join(log_lines) + "</div>"
     )
     return log_html, inbox_html, email_html, erp_html, fields_html, flags_html, score_html
 
 
 # -- Gradio UI -----------------------------------------------------------------
 CSS = """
-body, .gradio-container { background: #11111b !important; color: #cdd6f4 !important; }
-.gr-button-primary { background: linear-gradient(135deg,#89b4fa,#cba6f7) !important;
-                     border:none !important; color:#11111b !important;
-                     font-weight:700 !important; border-radius:8px !important; }
-.gr-button-primary:hover { opacity:0.88 !important; }
-h1,h2,h3 { color: #cdd6f4 !important; }
-label { color: #a6adc8 !important; }
-.gr-panel { background: #1e1e2e !important; border: 1px solid #313244 !important;
-            border-radius: 10px !important; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+body, .gradio-container {
+  background: #f5f5f5 !important;
+  color: #212121 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+button { font-family: 'Inter', sans-serif !important; }
+label { color: #424242 !important; font-weight: 500 !important; }
 """
 
 TASK_DESCRIPTIONS = {
-    "easy":               "Easy -- Read email, Query ERP, Extract fields, Approve",
-    "medium":             "Medium -- Detect line-item price mismatch & Reject",
-    "hard":               "Hard -- Schema drift + duplicate invoice detection",
-    "expert_negotiation": "Expert: Negotiation -- Email vendor, get corrected invoice",
-    "expert_fraud":       "Expert: Fraud -- Lookalike domain phishing detection",
+    "easy":               "Easy - Read email, query ERP, extract fields, and approve.",
+    "medium":             "Medium - Detect a line-item price mismatch and reject.",
+    "hard":               "Hard - Handle schema drift and detect a duplicate invoice.",
+    "expert_negotiation": "Expert Negotiation - Email the vendor, get a corrected invoice, then approve.",
+    "expert_fraud":       "Expert Fraud - Detect a lookalike domain phishing invoice and reject.",
 }
 
 def build_demo():
     with gr.Blocks(title="Enterprise AP-Env Demo") as demo:
+
         gr.HTML(
-            "<div style='text-align:center;padding:20px 0 10px;'>"
-            "<h1 style='font-size:2em;background:linear-gradient(135deg,#89b4fa,#cba6f7);"
-            "-webkit-background-clip:text;-webkit-text-fill-color:transparent;"
-            "font-weight:800;margin-bottom:4px;'>Enterprise AP-Env</h1>"
-            "<p style='color:#6c7086;font-size:1em;'>"
-            "Multi-App AI Agent Environment -- Meta AI Hackathon Finals</p></div>"
+            "<div style='text-align:center;padding:20px 0 8px;'>"
+            "<h1 style='font-size:2em;color:#212121;font-weight:700;margin-bottom:4px;'>"
+            "Enterprise AP-Env</h1>"
+            "<p style='color:#616161;font-size:1em;font-weight:400;'>"
+            "Multi-App AI Agent Environment</p></div>"
         )
 
         with gr.Row():
@@ -291,57 +283,70 @@ def build_demo():
                     value="easy", label="Select Task",
                 )
                 task_desc = gr.HTML(
-                    f"<div style='color:#a6adc8;font-size:0.88em;padding:4px 0;'>"
+                    f"<div style='color:#424242;font-size:0.88em;padding:6px 0;'>"
                     f"{TASK_DESCRIPTIONS['easy']}</div>"
                 )
                 run_btn = gr.Button("Run Episode", variant="primary", size="lg")
                 score_out = gr.HTML(label="Final Score")
-                gr.HTML("<hr style='border-color:#313244;margin:10px 0;'>")
+                gr.HTML("<hr style='border-color:#e0e0e0;margin:12px 0;'>")
                 gr.HTML(
-                    "<div style='color:#6c7086;font-size:0.82em;line-height:1.6;'>"
-                    "<b style='color:#a6adc8;'>Reward Breakdown</b><br>"
-                    "Correct extraction: +0.07<br>"
-                    "ERP query success: +0.10<br>"
-                    "Email read: +0.05<br>"
-                    "Negotiate: +0.20<br>"
-                    "Correct flag: +0.12<br>"
-                    "Final grader: 40/30/30%</div>"
+                    "<div style='background:#ffffff;border:1px solid #e0e0e0;border-radius:6px;"
+                    "padding:12px;font-size:0.85em;line-height:2;'>"
+                    "<b style='color:#212121;font-size:0.92em;'>Reward Breakdown</b><br>"
+                    "<span style='color:#2e7d32;font-weight:600;'>+0.07</span>"
+                    "<span style='color:#424242;'> Correct field extraction</span><br>"
+                    "<span style='color:#2e7d32;font-weight:600;'>+0.10</span>"
+                    "<span style='color:#424242;'> ERP query success</span><br>"
+                    "<span style='color:#2e7d32;font-weight:600;'>+0.05</span>"
+                    "<span style='color:#424242;'> Email read</span><br>"
+                    "<span style='color:#2e7d32;font-weight:600;'>+0.20</span>"
+                    "<span style='color:#424242;'> Negotiation success</span><br>"
+                    "<span style='color:#2e7d32;font-weight:600;'>+0.12</span>"
+                    "<span style='color:#424242;'> Correct flag raised</span><br>"
+                    "<span style='color:#757575;font-size:0.88em;'>"
+                    "Final score: 40% fields / 30% flags / 30% decision</span></div>"
                 )
 
             with gr.Column(scale=3):
-                gr.HTML("<b style='color:#89b4fa;'>Step-by-Step Agent Log</b>")
+                gr.HTML("<div style='font-size:0.95em;font-weight:600;color:#212121;margin-bottom:6px;'>"
+                        "Agent Step Log</div>")
                 log_out = gr.HTML(
-                    "<div style='background:#181825;border-radius:10px;padding:20px;"
-                    "color:#6c7086;font-style:italic;'>"
-                    "Click Run Episode to start.</div>"
+                    "<div style='background:#fafafa;border:1px solid #e0e0e0;border-radius:8px;"
+                    "padding:24px;color:#9e9e9e;font-style:italic;text-align:center;'>"
+                    "Select a task and click Run Episode to watch the agent work.</div>"
                 )
 
-        gr.HTML("<hr style='border-color:#313244;margin:8px 0;'>")
+        gr.HTML("<hr style='border-color:#e0e0e0;margin:8px 0;'>")
+
+        def _hdr(label):
+            return f"<div style='font-size:0.90em;font-weight:600;color:#424242;margin-bottom:4px;'>{label}</div>"
+        def _empty(msg):
+            return f"<div style='color:#9e9e9e;font-size:0.85em;padding:8px;'>{msg}</div>"
 
         with gr.Row():
             with gr.Column():
-                gr.HTML("<b style='color:#89b4fa;'>Inbox</b>")
-                inbox_out = gr.HTML("<div style='color:#6c7086;font-size:0.85em;'>--</div>")
+                gr.HTML(_hdr("Inbox"))
+                inbox_out = gr.HTML(_empty("No emails yet"))
             with gr.Column():
-                gr.HTML("<b style='color:#89b4fa;'>Email Content</b>")
-                email_out = gr.HTML("<div style='color:#6c7086;font-size:0.85em;'>--</div>")
+                gr.HTML(_hdr("Email Content"))
+                email_out = gr.HTML(_empty("Email not read yet"))
 
         with gr.Row():
             with gr.Column():
-                gr.HTML("<b style='color:#89b4fa;'>ERP Response</b>")
-                erp_out = gr.HTML("<div style='color:#6c7086;font-size:0.85em;'>--</div>")
+                gr.HTML(_hdr("ERP Response"))
+                erp_out = gr.HTML(_empty("ERP not queried yet"))
             with gr.Column():
-                gr.HTML("<b style='color:#89b4fa;'>Extracted Fields</b>")
-                fields_out = gr.HTML("<div style='color:#6c7086;font-size:0.85em;'>--</div>")
+                gr.HTML(_hdr("Extracted Fields"))
+                fields_out = gr.HTML(_empty("No fields extracted yet"))
 
         with gr.Row():
             with gr.Column():
-                gr.HTML("<b style='color:#89b4fa;'>Flags Raised</b>")
-                flags_out = gr.HTML("<div style='color:#6c7086;font-size:0.85em;'>None</div>")
+                gr.HTML(_hdr("Flags Raised"))
+                flags_out = gr.HTML(_empty("No flags raised"))
 
         def update_desc(task):
-            return (f"<div style='color:#a6adc8;font-size:0.88em;padding:4px 0;'>"
-                    f"{TASK_DESCRIPTIONS.get(task,'')}</div>")
+            return (f"<div style='color:#424242;font-size:0.88em;padding:6px 0;'>"
+                    f"{TASK_DESCRIPTIONS.get(task, '')}</div>")
 
         task_dd.change(update_desc, inputs=task_dd, outputs=task_desc)
         run_btn.click(
@@ -354,4 +359,10 @@ def build_demo():
 
 if __name__ == "__main__":
     demo = build_demo()
-    demo.launch(server_name="0.0.0.0", server_port=7860, share=False, css=CSS)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=8080,
+        share=False,
+        css=CSS,
+        theme=gr.themes.Default(font=["Inter", "sans-serif"], primary_hue="blue", neutral_hue="gray"),
+    )
