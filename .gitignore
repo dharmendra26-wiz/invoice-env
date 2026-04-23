@@ -24,9 +24,9 @@ env/
 *.swp
 *.swo
 
-# Training outputs
-reward_curves.png
-training_results.json
+# Training outputs (committed as evidence — do NOT re-add to gitignore)
+# reward_curves.png
+# training_results.json
 
 # uv lockfile artifacts
 uv.lock
