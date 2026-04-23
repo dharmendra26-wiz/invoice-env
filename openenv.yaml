@@ -35,7 +35,7 @@ tasks:
     reward_range: [0.0, 1.0]
 
   - name: expert_fraud
-    description: Fraud detection. Invoice looks valid but comes from a lookalike email domain. Agent must flag and reject.
+    description: Fraud detection. Invoice looks valid but comes from a lookalike email domain and uses a fraudulent IBAN. Agent must flag both and reject.
     max_steps: 20
     reward_range: [0.0, 1.0]
 
