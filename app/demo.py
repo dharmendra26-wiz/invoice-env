@@ -9,7 +9,7 @@ import sys, os, json, random, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gradio as gr
-from app.environment import InvoiceEnvironment
+from app.environment import EnterpriseAPEnvironment
 from app.models import Action
 
 
@@ -110,7 +110,7 @@ def _agent_action(task_name, obs, noise=0.0):
 
 # -- Episode runner ------------------------------------------------------------
 def run_episode(task_name):
-    env = InvoiceEnvironment(task_name)
+    env = EnterpriseAPEnvironment(task_name)
     obs = env.reset().model_dump()
     steps, done, step, cumulative = [], False, 0, 0.0
 
@@ -271,7 +271,7 @@ def build_demo():
         gr.HTML(
             "<div style='text-align:center;padding:20px 0 8px;'>"
             "<h1 style='font-size:2em;color:#212121;font-weight:700;margin-bottom:4px;'>"
-            "Enterprise AP-Env</h1>"
+            "Enterprise AP Environment</h1>"
             "<p style='color:#616161;font-size:1em;font-weight:400;'>"
             "Multi-App AI Agent Environment</p></div>"
         )

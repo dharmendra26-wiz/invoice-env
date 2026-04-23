@@ -2,7 +2,7 @@ from typing import Dict,Any,Optional
 from app.models import Action,Observation,Reward,StepResult
 from app.tasks import generate_task,grade_task
 
-class InvoiceEnvironment:
+class EnterpriseAPEnvironment:
     def __init__(self,task_name:str="easy",seed:int=None):
         self.task_name=task_name
         self.seed=seed

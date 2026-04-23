@@ -5,14 +5,14 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from typing import Dict, Any
 
-from app.environment import InvoiceEnvironment
+from app.environment import EnterpriseAPEnvironment
 from app.models import Action, ResetResponse, StepResult
 
-app = FastAPI(title="Invoice Processing Environment", version="2.0.0")
+app = FastAPI(title="Enterprise AP Environment", version="2.0.0")
 
 # ── Session store ─────────────────────────────────────────────────────────────
 # Keyed by UUID session_id so parallel episodes never collide.
-_envs: Dict[str, InvoiceEnvironment] = {}
+_envs: Dict[str, EnterpriseAPEnvironment] = {}
 _last_active: Dict[str, float] = {}   # session_id → monotonic timestamp
 SESSION_TTL = 300.0                    # seconds before an idle session is evicted
 
@@ -26,7 +26,7 @@ def _evict_stale() -> None:
         _last_active.pop(sid, None)
 
 
-def _get_env(session_id: str) -> InvoiceEnvironment:
+def _get_env(session_id: str) -> EnterpriseAPEnvironment:
     """Look up a session, refreshing its TTL.  Raises 404 if not found."""
     _evict_stale()
     if session_id not in _envs:
@@ -42,7 +42,7 @@ def _get_env(session_id: str) -> InvoiceEnvironment:
 
 @app.get("/")
 def root():
-    return {"name": "invoice-env", "version": "2.0.0", "status": "running"}
+    return {"name": "enterprise-ap-env", "version": "2.0.0", "status": "running"}
 
 
 @app.post("/reset", response_model=ResetResponse)
@@ -50,7 +50,7 @@ def reset(task_name: str = "easy") -> ResetResponse:
     """Start a new episode.  Returns a unique session_id — pass it to /step."""
     _evict_stale()
     session_id = str(uuid.uuid4())
-    env = InvoiceEnvironment(task_name=task_name)
+    env = EnterpriseAPEnvironment(task_name=task_name)
     obs = env.reset()
     _envs[session_id] = env
     _last_active[session_id] = time.monotonic()

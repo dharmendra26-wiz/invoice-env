@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name = "invoice-env"
+name = "enterprise-ap-env"
 version = "1.0.0"
-description = "An OpenEnv-compatible AI agent environment for invoice processing"
+description = "An OpenEnv-compatible Enterprise Accounts Payable AI agent environment"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

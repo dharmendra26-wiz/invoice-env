@@ -1,5 +1,5 @@
 """
-inference.py — LLM agent that drives the invoice-env environment.
+inference.py — LLM agent that drives the Enterprise AP Environment.
 
 Usage:
     python inference.py                  # run easy/medium/hard
@@ -19,7 +19,7 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME",   "Qwen/Qwen2.5-72B-Instruct")
 HF_TOKEN     = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "dummy-key")
 ENV_URL      = os.getenv("ENV_URL",      "http://localhost:7860")
-BENCHMARK    = "invoice-env"
+BENCHMARK    = "enterprise-ap-env"
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
 def llm_call(messages: list) -> str:
@@ -190,7 +190,7 @@ def run_task(task_name: str) -> float:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(description="Invoice-env LLM inference agent")
+    parser = argparse.ArgumentParser(description="Enterprise AP Environment LLM inference agent")
     parser.add_argument("--task",  default=None,  help="Single task name to run")
     parser.add_argument("--all",   action="store_true", help="Run all 5 tasks")
     args = parser.parse_args()
