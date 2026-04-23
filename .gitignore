@@ -30,6 +30,14 @@ env/
 
 # uv lockfile artifacts
 uv.lock
+pyproject.toml
+
+# Internal tooling & analysis — never commit these
+patch_notebook.py
+hackathon_gap_analysis.md
+debug.py
+*_gap_analysis.md
+*_analysis.md
 
 # Misc
 *.log
