@@ -1,5 +1,5 @@
 ---
-title: Enterprise Multi-App AI Simulator
+title: Enterprise AP Environment
 emoji: 🏢
 colorFrom: purple
 colorTo: blue
@@ -7,7 +7,7 @@ sdk: docker
 pinned: false
 ---
 
-# Enterprise Multi-App AI Simulator 🏢
+# Enterprise AP Environment 🏢
 
 An OpenEnv-compatible RL/Agent training environment for the **Meta AI Hackathon Grand Finale**.
 
@@ -118,8 +118,8 @@ python inference.py --all
 ## Docker (for HuggingFace Spaces)
 
 ```bash
-docker build -t invoice-env .
-docker run -p 7860:7860 invoice-env
+docker build -t enterprise-ap-env .
+docker run -p 7860:7860 enterprise-ap-env
 ```
 
 ---
@@ -140,7 +140,7 @@ docker run -p 7860:7860 invoice-env
 ## Project Structure
 
 ```
-invoice-env/
+enterprise-ap-env/
 ├── app/
 │   ├── main.py          # FastAPI server
 │   ├── environment.py   # Core state machine
