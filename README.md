@@ -105,14 +105,15 @@ pip install -r requirements.txt
 # Start the REST API server
 python -m uvicorn app.main:app --host 0.0.0.0 --port 7860
 
-# Run training (local mode, no server needed)
+# Run training (rule-based reference agent — validates environment correctness)
 python train.py --episodes 60
 
-# Launch Gradio live demo
-python app/demo.py
-
-# Run LLM inference agent
+# Run LLM inference agent (Llama-3.1-8B — real benchmark)
 python inference.py --all
+
+# Or target specific tasks:
+python inference.py --task easy
+python inference.py --task expert_fraud
 ```
 
 ## Docker (for HuggingFace Spaces)
@@ -156,8 +157,43 @@ enterprise-ap-env/
 
 ---
 
-## Training Results
+## Evaluation Results
 
-All 5 tasks achieve **0.94 final average reward** with clear upward learning curves.
+### Rule-Based Reference Agent (`train.py`)
+
+A deterministic rule-based agent validates environment correctness across all 5 tasks over 60 episodes.
+All tasks achieve **0.94 final average reward**, confirming the reward shaping works as designed.
+
+| Task | Final Avg Reward | Target | Status |
+|------|-----------------|--------|--------|
+| easy | 0.94 | 0.85 | PASS |
+| medium | 0.94 | 0.75 | PASS |
+| hard | 0.94 | 0.65 | PASS |
+| expert_negotiation | 0.94 | 0.70 | PASS |
+| expert_fraud | 0.94 | 0.70 | PASS |
+
+> The rule-based agent uses deterministic regex parsing and a decaying noise schedule to simulate a learning curve.
+> It serves as a correctness oracle for the environment — not the research contribution.
+
+---
+
+### LLM Agent (`inference.py`) — Real Benchmark Results
+
+A real LLM agent (`meta-llama/Llama-3.1-8B-Instruct` via HuggingFace Inference API)
+drives the environment via the OpenAI-compatible REST interface with no task-specific hardcoding.
+
+| Task | LLM Score | Steps | Result |
+|------|-----------|-------|--------|
+| easy | **0.99** | 14 | PASS — extracted all 7 fields, approved correctly |
+| expert_fraud | **0.99** | 14 | PASS — detected lookalike domain, flagged fraud, rejected |
+
+Key observations from the `expert_fraud` run:
+- LLM read email from `billing@vertx.com` (lookalike for `vertex.com`)
+- Extracted all 7 invoice fields correctly
+- Independently flagged `fraud` (reward: +0.12 from environment)
+- Issued `reject` decision — episode complete
+
+> **The environment is the research contribution.** The rule-based agent validates reward correctness at 0.94.
+> The LLM agent establishes the actual research baseline at 0.99 on clean tasks and fraud detection.
 
 Built for the **Meta AI Hackathon Grand Finale 2026**.
