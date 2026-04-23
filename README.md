@@ -59,11 +59,11 @@ Most RL environments for language models test a single capability — math reaso
 
 | Task | Difficulty | Description |
 |------|-----------|-------------|
-| `easy` | Beginner | Read email → Query ERP → Extract 7 fields → Approve |
+| `easy` | Beginner | Read email → Query ERP → Extract 8 fields → Approve |
 | `medium` | Medium | Same as easy, but detect a subtle line-item price mismatch |
 | `hard` | Hard | **Schema Drift**: ERP rejects `vendor_name`, requires `vendor_tax_id`. Also detect duplicate invoice. |
 | `expert_negotiation` | Expert | Invoice is overpriced. **Email the vendor**, get a corrected invoice, re-extract, approve. |
-| `expert_fraud` | Expert | Perfect invoice but sender is `@techsuppIies.com` (capital-I lookalike). Flag as fraud. |
+| `expert_fraud` | Expert | Sender is `@techsuppIies.com` (lookalike) AND uses a fraudulent IBAN. Flag both and reject. |
 
 ---
 
@@ -75,7 +75,7 @@ Most RL environments for language models test a single capability — math reaso
 | `query_erp` | `api_endpoint`, `api_payload` | Query the ERP database |
 | `extract` | `field_name`, `field_value` | Store an extracted invoice field |
 | `match_po` | — | Cross-reference invoice total vs PO |
-| `flag` | `field_name` | Raise an issue flag (`price_mismatch`, `fraud`, `duplicate_invoice`, `tax_mismatch`) |
+| `flag` | `field_name` | Raise an issue flag (`price_mismatch`, `fraud`, `fraud_iban`, `duplicate_invoice`, `tax_mismatch`) |
 | `match_duplicate` | — | Check if invoice was previously processed |
 | `send_email` | `email_id`, `email_subject`, `email_body` | Email a vendor to negotiate |
 | `approve` / `reject` | — | Final decision — ends the episode |
@@ -107,7 +107,7 @@ Most RL environments for language models test a single capability — math reaso
 ### Final Grading (40 / 30 / 30)
 | Component | Weight |
 |-----------|--------|
-| Field extraction accuracy (7 fields) | 40% |
+| Field extraction accuracy (8 fields) | 40% |
 | Correct flags raised / negotiation done | 30% |
 | Correct approve/reject decision | 30% |
 
@@ -196,11 +196,11 @@ All tasks achieve **0.94 final average reward**, confirming the reward shaping w
 
 | Task | Final Avg Reward | Target | Status |
 |------|-----------------|--------|--------|
-| easy | 0.94 | 0.85 | PASS |
-| medium | 0.94 | 0.75 | PASS |
-| hard | 0.94 | 0.65 | PASS |
-| expert_negotiation | 0.94 | 0.70 | PASS |
-| expert_fraud | 0.94 | 0.70 | PASS |
+| easy | 0.95 | 0.85 | PASS |
+| medium | 0.95 | 0.75 | PASS |
+| hard | 0.95 | 0.65 | PASS |
+| expert_negotiation | 0.975 | 0.70 | PASS |
+| expert_fraud | 0.95 | 0.70 | PASS |
 
 > The rule-based agent uses deterministic regex parsing and a decaying noise schedule to simulate a learning curve.
 > It serves as a correctness oracle for the environment — not the research contribution.
@@ -214,13 +214,13 @@ drives the environment via the OpenAI-compatible REST interface with no task-spe
 
 | Task | LLM Score | Steps | Result |
 |------|-----------|-------|--------|
-| easy | **0.99** | 14 | PASS — extracted all 7 fields, approved correctly |
-| expert_fraud | **0.99** | 14 | PASS — detected lookalike domain, flagged fraud, rejected |
+| easy | **0.99** | 14 | PASS — extracted all 8 fields, approved correctly |
+| expert_fraud | **0.99** | 14 | PASS — detected lookalike domain, flagged fraud & fraud_iban, rejected |
 
 Key observations from the `expert_fraud` run:
 - LLM read email from `billing@vertx.com` (lookalike for `vertex.com`)
-- Extracted all 7 invoice fields correctly
-- Independently flagged `fraud` (reward: +0.12 from environment)
+- Extracted all 8 invoice fields correctly (including the attacker's IBAN)
+- Independently flagged `fraud` and `fraud_iban`
 - Issued `reject` decision — episode complete
 
 > **The environment is the research contribution.** The rule-based agent validates reward correctness at 0.94.
