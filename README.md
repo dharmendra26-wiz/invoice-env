@@ -9,8 +9,19 @@ pinned: false
 # Enterprise AP Environment
 
 **An OpenEnv-compatible RL/Agent training environment**
+**Team SHIPWithTEA : Prachi and Dharmendra**
 
 The AI agent is dropped into a realistic enterprise **Accounts Payable department** and must process invoices by interacting across multiple applications: an email inbox, an ERP system (with schema drift), and vendor communication channels.
+
+---
+
+## Key Features
+
+- **Multi-App Workflow:** Forces the agent to synthesize information across different systems (unstructured email inbox and structured ERP database).
+- **Adversarial Security (Phishing):** Tests the agent's attention to detail by deploying lookalike-domain phishing attacks (e.g., `techsuppIies.com` vs. `techsupplies.com`).
+- **Dynamic Schema Drift:** The ERP API silently alters its required fields mid-episode, requiring the agent to parse error messages, recover, and adapt dynamically.
+- **Multi-Agent Negotiation:** Agents don't just extract data; they identify discrepancies and autonomously email simulated vendors to negotiate corrected invoices before approval.
+- **TRL/Unsloth Training Integration:** Proves learnability with an integrated Hugging Face TRL & Unsloth `GRPOTrainer` pipeline.
 
 ---
 
