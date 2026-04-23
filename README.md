@@ -15,6 +15,24 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 
 ---
 
+## 🔗 Quick Links
+- **[HuggingFace Writeup & Details](https://huggingface.co/Prachi-2601/Multi-App-RL-Env-Invoice-Processing-Schema-Drift-Fraud-Detection-Vendor-Negotiation)**
+- **[Live Demo on HuggingFace Spaces](https://huggingface.co/spaces/decent-cow26/invoice-env)**
+
+---
+
+## 🚨 The Problem
+Enterprise Accounts Payable (AP) departments process hundreds of invoices every day. The work looks repetitive on the surface — read the invoice, check it against the Purchase Order, approve or reject — but the reality is far more complicated. Vendors send incorrect amounts. ERP systems change their APIs without warning. Duplicate invoices slip through undetected. And increasingly, attackers send fraudulent invoices from lookalike domains that differ from the real vendor by a single character.
+
+Current rule-based automation systems catch obvious errors but fail at anything that requires judgment. We built this environment to see if a language model could be trained to handle this entire workflow — and get measurably better at it over time.
+
+---
+
+## 💡 Why It Matters
+Most RL environments for language models test a single capability — math reasoning, code generation, or factual retrieval. This environment tests a compound skill: multi-step, multi-app reasoning under adversarial conditions. The failure modes (approving a fraudulent invoice, missing a duplicate, failing to negotiate) are the exact failures that cost real organizations real money.
+
+---
+
 ## Hackathon Themes Covered
 
 | Theme | Coverage |
@@ -163,6 +181,8 @@ enterprise-ap-env/
 
 A deterministic rule-based agent validates environment correctness across all 5 tasks over 60 episodes.
 All tasks achieve **0.94 final average reward**, confirming the reward shaping works as designed.
+
+![Reward Curves](./reward_curves.png)
 
 | Task | Final Avg Reward | Target | Status |
 |------|-----------------|--------|--------|
