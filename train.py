@@ -157,10 +157,10 @@ def get_action(task_name: str, obs: dict, step: int,
 
 # ── Local episode runner ──────────────────────────────────────────────────────
 def run_episode_local(task_name: str, episode: int, total_episodes: int) -> float:
-    from app.environment import InvoiceEnvironment
+    from app.environment import EnterpriseAPEnvironment
     from app.models import Action
 
-    env = InvoiceEnvironment(task_name)
+    env = EnterpriseAPEnvironment(task_name)
     obs = env.reset().model_dump()
     done, step, best_reward = False, 0, 0.0
 
