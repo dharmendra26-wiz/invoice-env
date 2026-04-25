@@ -462,7 +462,7 @@ def build_demo():
             "Rule-Based Agent (set HF_TOKEN to enable LLM)</span>"
         )
 
-    with gr.Blocks(title="Enterprise AP-Env Demo") as demo:
+    with gr.Blocks(title="Enterprise AP-Env Demo", css=CSS) as demo:
 
         gr.HTML(
             f"<div style='text-align:center;padding:20px 0 8px;'>"
@@ -559,5 +559,4 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=7861,
         share=False,
-        css=CSS,
     )
