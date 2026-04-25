@@ -2,7 +2,23 @@ from typing import Dict,Any,Optional
 from app.models import Action,Observation,Reward,StepResult
 from app.tasks import generate_task,grade_task
 
-class EnterpriseAPEnvironment:
+# OpenEnv base class — graceful fallback if openenv-core not yet installed
+try:
+    from openenv.core.env_server import Environment as _OpenEnvBase
+except ImportError:
+    class _OpenEnvBase:  # type: ignore
+        """Stub used when openenv-core is not installed."""
+        pass
+
+class EnterpriseAPEnvironment(_OpenEnvBase):
+    """Enterprise Accounts Payable benchmark environment.
+
+    Inherits from OpenEnv's Environment base class (openenv-core) to comply with
+    the OpenEnv hackathon standard. Implements the Gym-style API:
+      - reset()  — start a new episode
+      - step()   — take one action
+      - state    — property returning current episode metadata
+    """
     def __init__(self,task_name:str="easy",seed:int=None):
         self.task_name=task_name
         self.seed=seed
@@ -21,7 +37,7 @@ class EnterpriseAPEnvironment:
         self.erp_queried=False
         self.negotiated=False
 
-    def reset(self)->Observation:
+    def reset(self, seed: int = None, episode_id: str = None, **kwargs) -> Observation:
         # Regenerate randomised task data on every reset
         self.task=generate_task(self.task_name,seed=self.seed)
         self.extracted_fields={}
@@ -38,7 +54,8 @@ class EnterpriseAPEnvironment:
         
         return self._get_obs("New episode started. You have unread emails in your inbox.")
 
-    def state(self)->Dict[str,Any]:
+    @property
+    def state(self) -> Dict[str, Any]:
         return {
             "task_name":self.task_name,
             "extracted_fields":self.extracted_fields,
@@ -50,7 +67,7 @@ class EnterpriseAPEnvironment:
             "erp_queried":self.erp_queried
         }
 
-    def step(self,action:Action)->StepResult:
+    def step(self, action: Action, timeout_s: float = None, **kwargs) -> StepResult:
         if self.done:
             return StepResult(
                 observation=self._get_obs("Episode already done."),

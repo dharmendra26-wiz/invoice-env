@@ -72,7 +72,7 @@ def step(session_id: str, action: Action) -> StepResult:
 @app.get("/state")
 def state(session_id: str) -> Dict[str, Any]:
     """Inspect the live state of an active session (debugging / evaluation)."""
-    return _get_env(session_id).state()
+    return _get_env(session_id).state
 
 
 @app.get("/sessions")
