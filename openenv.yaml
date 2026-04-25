@@ -9,7 +9,7 @@ author: dharmendra
 tags:
   - enterprise-ap
   - finance
-  - multi-agent
+  - multi-turn-dynamics
   - enterprise-workflow
   - schema-drift
 
@@ -30,7 +30,7 @@ tasks:
     reward_range: [0.0, 1.0]
 
   - name: expert_negotiation
-    description: Multi-Agent interaction. Negotiate with vendor via email to resolve a price discrepancy before approving.
+    description: Multi-turn interactive resolution. Agent emails a simulated reactive vendor actor to solicit a corrected invoice, then re-extracts fields and approves.
     max_steps: 25
     reward_range: [0.0, 1.0]
 

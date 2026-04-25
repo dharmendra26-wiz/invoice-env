@@ -22,7 +22,7 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 | **#3.1 World Modeling – Professional Tasks** | Full multi-app enterprise AP workflow |
 | **Scaler AI Labs – Multi-App RL** | Agent bridges unstructured email + structured ERP API |
 | **Patronus AI – Schema Drift** | ERP API silently changes its required fields mid-workflow |
-| **#1 Multi-Agent Interactions** | Agent negotiates with a simulated vendor via email |
+| **#1 Multi-Turn Environment Dynamics** | Agent resolves a price discrepancy via multi-turn email negotiation with a simulated reactive vendor actor |
 | **Safety / Security** | Phishing/lookalike domain fraud detection |
 
 ---
@@ -34,7 +34,7 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 | `easy` | Beginner | Read email → Query ERP → Extract 7 fields → Approve |
 | `medium` | Medium | Same as easy, but detect a subtle line-item price mismatch |
 | `hard` | Hard | **Schema Drift**: ERP rejects `vendor_name`, requires `vendor_tax_id`. Also detect duplicate invoice. |
-| `expert_negotiation` | Expert | Invoice is overpriced. **Email the vendor**, get a corrected invoice, re-extract, approve. |
+| `expert_negotiation` | Expert | Invoice is overpriced. **Email the vendor** (simulated reactive actor), get a corrected invoice dynamically injected into the inbox, re-extract all fields, then approve. |
 | `expert_fraud` | Expert | Perfect invoice but sender is `@techsuppIies.com` (capital-I lookalike). Flag as fraud. |
 
 ---
@@ -73,7 +73,7 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 - ERP query success: **+0.10**
 - Correct field extraction: **+0.07**
 - Correct flag: **+0.12**
-- Negotiation email (triggers reply): **+0.20**
+- Negotiation email sent to vendor (triggers dynamic inbox update): **+0.20**
 - Wrong actions: **-0.01 to -0.05**
 
 ### Final Grading (40 / 30 / 30)
@@ -129,10 +129,11 @@ docker run -p 7860:7860 enterprise-ap-env
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/reset?task_name=easy` | POST | Start a new episode |
-| `/step?task_name=easy` | POST | Take one action |
-| `/state?task_name=easy` | GET | Inspect current state |
-| `/tasks` | GET | List all tasks |
+| `/reset?task_name=easy` | POST | Start a new episode — returns a unique `session_id` |
+| `/step?session_id=<uuid>` | POST | Take one action — pass `session_id` from `/reset` |
+| `/state?session_id=<uuid>` | GET | Inspect live state of an active session |
+| `/sessions` | GET | List all active sessions and their task names |
+| `/tasks` | GET | List all available tasks |
 | `/health` | GET | Health check |
 | `/docs` | GET | Interactive Swagger UI |
 
