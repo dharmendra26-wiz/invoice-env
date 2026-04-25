@@ -13,4 +13,4 @@ EXPOSE 7860
 ENV PYTHONPATH=/app
 
 # Launch the Gradio demo UI (visible on HuggingFace Spaces)
-CMD ["python", "app/demo.py"]
+CMD ["python", "app.py"]
