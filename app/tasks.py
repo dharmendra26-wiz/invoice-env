@@ -9,6 +9,7 @@ _VENDORS = [
         "domain": "techsupplies.com",
         "fraud_domain": "techsuppIies.com",   # capital-I lookalike
         "tax_id": "TS-1234-56",
+        "iban": "FR7630006000011234567890188",
         "items": [
             {"item": "Laptop",   "price_range": (700,  1200), "qty_range": (1, 4)},
             {"item": "Monitor",  "price_range": (200,   500), "qty_range": (1, 6)},
@@ -21,6 +22,7 @@ _VENDORS = [
         "domain": "officemart.ltd",
         "fraud_domain": "0fficemart.ltd",     # zero for 'o'
         "tax_id": "OM-7788-99",
+        "iban": "GB82WEST12345698765432",
         "items": [
             {"item": "Office Chair",   "price_range": (150, 350), "qty_range": (2, 6)},
             {"item": "Standing Desk",  "price_range": (400, 800), "qty_range": (1, 4)},
@@ -33,6 +35,7 @@ _VENDORS = [
         "domain": "globaltech.com",
         "fraud_domain": "g1obaltech.com",     # numeral-1 for 'l'
         "tax_id": "GT-9988-77",
+        "iban": "DE89370400440532013000",
         "items": [
             {"item": "Server",         "price_range": (3000, 8000), "qty_range": (1, 3)},
             {"item": "Network Switch", "price_range": (200,   500), "qty_range": (2, 8)},
@@ -45,6 +48,7 @@ _VENDORS = [
         "domain": "vertex.com",
         "fraud_domain": "vertx.com",
         "tax_id": "VS-4455-66",
+        "iban": "NL91ABNA0417164300",
         "items": [
             {"item": "Enterprise License", "price_range": (5000, 15000), "qty_range": (1, 1)},
             {"item": "Support Contract",   "price_range": (1000,  3000), "qty_range": (1, 2)},
@@ -56,6 +60,7 @@ _VENDORS = [
         "domain": "cloudserve.io",
         "fraud_domain": "c1oudserve.io",
         "tax_id": "CS-3322-11",
+        "iban": "IE12BOFI90000112345678",
         "items": [
             {"item": "Cloud Storage (TB)", "price_range": (100, 300), "qty_range": (5, 20)},
             {"item": "Compute Instance",   "price_range": (200, 600), "qty_range": (2, 10)},
@@ -104,16 +109,17 @@ def _totals(line_items: List[Dict], tax_rate: float):
 
 def _invoice_body(vendor_name, inv_num, inv_date, due_date,
                   line_items, subtotal, tax_amount, total, tax_rate,
-                  tax_id: str = None) -> str:
+                  tax_id: str = None, iban: str = None) -> str:
     li_lines = "\n".join(
         f"  - {li['item']} x{li['qty']} @ ${li['unit_price']:.2f} each"
         f" = ${li['qty'] * li['unit_price']:.2f}"
         for li in line_items
     )
     tax_pct = int(tax_rate * 100)
-    hdr = f"Tax ID: {tax_id}\n" if tax_id else ""
+    hdr_tax = f"Tax ID: {tax_id}\n" if tax_id else ""
+    hdr_iban = f"Bank Account (IBAN): {iban}\n" if iban else ""
     return (
-        f"INVOICE\nVendor: {vendor_name}\n{hdr}"
+        f"INVOICE\nVendor: {vendor_name}\n{hdr_tax}{hdr_iban}"
         f"Invoice Number: {inv_num}\nInvoice Date: {inv_date}\nDue Date: {due_date}\n"
         f"Line Items:\n{li_lines}\n"
         f"Subtotal: ${subtotal:.2f}\nTax ({tax_pct}%): ${tax_amount:.2f}\nTotal: ${total:.2f}"
@@ -130,7 +136,7 @@ def _gen_easy() -> dict:
     items = _build_line_items(v)
     sub, tax, total = _totals(items, tax_rate)
     body = _invoice_body(v["name"], inv_num, _fmt(inv_date), _fmt(due_date),
-                         items, sub, tax, total, tax_rate)
+                         items, sub, tax, total, tax_rate, iban=v["iban"])
     return {
         "name": "easy",
         "description": "Read email to get the invoice, query ERP to get PO, and extract all fields.",
@@ -144,6 +150,7 @@ def _gen_easy() -> dict:
             v["name"]: {
                 "po_number": f"PO-{inv_num[4:]}",
                 "vendor": v["name"],
+                "iban": v["iban"],
                 "approved_amount": total,
                 "line_items": items,
             }
@@ -153,6 +160,7 @@ def _gen_easy() -> dict:
             "vendor_name": v["name"], "invoice_number": inv_num,
             "invoice_date": _fmt(inv_date), "due_date": _fmt(due_date),
             "subtotal": sub, "tax_amount": tax, "total_amount": total,
+            "iban": v["iban"],
         },
         "expected_decision": "approve",
     }
@@ -174,7 +182,7 @@ def _gen_medium() -> dict:
     ]
     _, _, po_total = _totals(po_items, tax_rate)
     body = _invoice_body(v["name"], inv_num, _fmt(inv_date), _fmt(due_date),
-                         items, sub, tax, total, tax_rate)
+                         items, sub, tax, total, tax_rate, iban=v["iban"])
     return {
         "name": "medium",
         "description": "Read email, query ERP, and detect a line item price mismatch.",
@@ -188,6 +196,7 @@ def _gen_medium() -> dict:
             v["name"]: {
                 "po_number": f"PO-{inv_num[4:]}",
                 "vendor": v["name"],
+                "iban": v["iban"],
                 "approved_amount": po_total,
                 "line_items": po_items,
             }
@@ -197,6 +206,7 @@ def _gen_medium() -> dict:
             "vendor_name": v["name"], "invoice_number": inv_num,
             "invoice_date": _fmt(inv_date), "due_date": _fmt(due_date),
             "subtotal": sub, "tax_amount": tax, "total_amount": total,
+            "iban": v["iban"],
         },
         "expected_decision": "reject",
         "expected_flags": ["price_mismatch"],
@@ -215,7 +225,7 @@ def _gen_hard() -> dict:
     _, _, correct_total = _totals(items, correct_tax_rate)
     body = _invoice_body(v["name"], inv_num, _fmt(inv_date), _fmt(due_date),
                          items, sub, inv_tax, inv_total, invoice_tax_rate,
-                         tax_id=v["tax_id"])
+                         tax_id=v["tax_id"], iban=v["iban"])
     return {
         "name": "hard",
         "description": "Multi-App: Schema Drift. ERP now requires tax_id. Invoice is also a duplicate.",
@@ -229,6 +239,7 @@ def _gen_hard() -> dict:
             v["tax_id"]: {
                 "po_number": f"PO-{inv_num[4:]}",
                 "vendor": v["name"],
+                "iban": v["iban"],
                 "approved_amount": correct_total,
                 "line_items": items,
             }
@@ -242,6 +253,7 @@ def _gen_hard() -> dict:
             "vendor_name": v["name"], "invoice_number": inv_num,
             "invoice_date": _fmt(inv_date), "due_date": _fmt(due_date),
             "subtotal": sub, "tax_amount": inv_tax, "total_amount": inv_total,
+            "iban": v["iban"],
         },
         "expected_decision": "reject",
         "expected_flags": ["duplicate_invoice", "tax_mismatch"],
@@ -265,7 +277,7 @@ def _gen_expert_negotiation() -> dict:
     tax_pct = int(tax_rate * 100)
 
     orig_body = (
-        f"Hi team,\nAttached is our invoice.\n\nINVOICE\nVendor: {v['name']}\n"
+        f"Hi team,\nAttached is our invoice.\n\nINVOICE\nVendor: {v['name']}\nBank Account (IBAN): {v['iban']}\n"
         f"Invoice Number: {inv_num_orig}\nInvoice Date: {_fmt(inv_date)}\nDue Date: {_fmt(due_date)}\n"
         f"Line Items:\n  - {inflated[0]['item']} x{inflated[0]['qty']} @ ${inflated_price:.2f}"
         f" each = ${inflated[0]['qty']*inflated_price:.2f}\n"
@@ -273,7 +285,7 @@ def _gen_expert_negotiation() -> dict:
     )
     corrected_body = (
         f"Hi Accounts Payable,\nApologies — we forgot to apply your {int(discount*100)}% "
-        f"partnership discount.\n\nCORRECTED INVOICE\nVendor: {v['name']}\n"
+        f"partnership discount.\n\nCORRECTED INVOICE\nVendor: {v['name']}\nBank Account (IBAN): {v['iban']}\n"
         f"Invoice Number: {inv_num_corr}\nInvoice Date: {_fmt(inv_date)}\nDue Date: {_fmt(due_date)}\n"
         f"Line Items:\n  - {items[0]['item']} x{items[0]['qty']} @ ${items[0]['unit_price']:.2f}"
         f" each = ${items[0]['qty']*items[0]['unit_price']:.2f}\n"
@@ -292,6 +304,7 @@ def _gen_expert_negotiation() -> dict:
             v["name"]: {
                 "po_number": f"PO-{inv_num_orig[4:]}",
                 "vendor": v["name"],
+                "iban": v["iban"],
                 "approved_amount": cor_total,
                 "line_items": items,
             }
@@ -311,6 +324,7 @@ def _gen_expert_negotiation() -> dict:
             "vendor_name": v["name"], "invoice_number": inv_num_corr,
             "invoice_date": _fmt(inv_date), "due_date": _fmt(due_date),
             "subtotal": cor_sub, "tax_amount": cor_tax, "total_amount": cor_total,
+            "iban": v["iban"],
         },
         "expected_decision": "approve",
         "expected_flags": [],
@@ -325,21 +339,31 @@ def _gen_expert_fraud() -> dict:
     due_date = inv_date + timedelta(days=10)   # suspiciously short
     items = _build_line_items(v, n=1)
     sub, tax, total = _totals(items, tax_rate)
+    
+    # Fraud: generate a unique, truly random IBAN per episode.
+    # Using `secrets` (OS-level entropy) so random.seed() from module import cannot fix this value.
+    import secrets, string as _string
+    _cc = secrets.choice(["CH", "LI", "AT", "NO", "SE", "PL", "RO", "CZ"])
+    _check = "".join(secrets.choice(_string.digits) for _ in range(2))
+    _bban  = "".join(secrets.choice(_string.digits) for _ in range(18))
+    fraud_iban = f"{_cc}{_check}{_bban}"
+    
     body = _invoice_body(v["name"], inv_num, _fmt(inv_date), _fmt(due_date),
-                         items, sub, tax, total, tax_rate)
+                         items, sub, tax, total, tax_rate, iban=fraud_iban)
     return {
         "name": "expert_fraud",
-        "description": "Fraud detection. Invoice comes from a lookalike email domain.",
+        "description": "Fraud detection. Invoice comes from a lookalike email domain and contains a fraudulent bank account (IBAN).",
         "emails": [{
             "id": "email_006",
             "sender": f"billing@{v['fraud_domain']}",   # ← lookalike domain
             "subject": "URGENT: Overdue Invoice — Process Immediately",
-            "body": f"Hello,\nThis is URGENT. Please process immediately.\n\n{body}",
+            "body": f"Hello,\nThis is URGENT. Please process immediately. Note our new payment details below.\n\n{body}",
         }],
         "erp_database": {
             v["name"]: {
                 "po_number": f"PO-{inv_num[4:]}",
                 "vendor": v["name"],
+                "iban": v["iban"],
                 "approved_amount": total,
                 "line_items": items,
             }
@@ -349,9 +373,10 @@ def _gen_expert_fraud() -> dict:
             "vendor_name": v["name"], "invoice_number": inv_num,
             "invoice_date": _fmt(inv_date), "due_date": _fmt(due_date),
             "subtotal": sub, "tax_amount": tax, "total_amount": total,
+            "iban": fraud_iban,
         },
         "expected_decision": "reject",
-        "expected_flags": ["fraud"],
+        "expected_flags": ["fraud", "fraud_iban"],
     }
 
 
@@ -397,7 +422,7 @@ def grade_task(task_name: str, extracted: Dict[str, Any], flags: List[str],
 
     # Field extraction (40 %)
     fields = ["vendor_name", "invoice_number", "invoice_date", "due_date",
-              "subtotal", "tax_amount", "total_amount"]
+              "subtotal", "tax_amount", "total_amount", "iban"]
     correct = 0
     for f in fields:
         if f in extracted:

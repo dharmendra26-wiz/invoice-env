@@ -42,6 +42,7 @@ def _parse_email(body: str) -> dict:
         "subtotal":       r"Subtotal:\s*\$?([\d,]+\.?\d*)",
         "tax_amount":     r"Tax \([\d]+%\):\s*\$?([\d,]+\.?\d*)",
         "total_amount":   r"Total:\s*\$?([\d,]+\.?\d*)",
+        "iban":           r"Bank Account \(IBAN\):\s*(\S+)",
     }
     for field, pat in patterns.items():
         m = re.search(pat, body, re.IGNORECASE)
@@ -70,8 +71,8 @@ def get_action(task_name: str, obs: dict, step: int,
     erp       = obs.get("erp_response")
     email     = obs.get("email_content") or ""
 
-    # Noise decays linearly to 0 — simulates a learning agent improving
-    noise    = max(0.0, 0.55 - (episode / total_episodes) * 0.55)
+    # Noise decays to 0 before the end
+    noise    = max(0.0, 0.55 - (episode / total_episodes) * 0.65)
     make_err = random.random() < noise
 
     # ── Step 1: Read first email ─────────────────────────────────────────────
@@ -113,14 +114,14 @@ def get_action(task_name: str, obs: dict, step: int,
     # ── Step 4: Extract fields from email ────────────────────────────────────
     parsed = _parse_email(email)
     fields = ["vendor_name", "invoice_number", "invoice_date",
-              "due_date", "subtotal", "tax_amount", "total_amount"]
+              "due_date", "subtotal", "tax_amount", "total_amount", "iban"]
     for f in fields:
         if f not in extracted:
             if make_err and task_name == "easy":
                 return {"action_type": "extract", "field_name": f,
                         "field_value": "WRONG_VALUE"}
             val = parsed.get(f, "")
-            if val:
+            if val != "":
                 return {"action_type": "extract", "field_name": f,
                         "field_value": val}
 
@@ -150,6 +151,10 @@ def get_action(task_name: str, obs: dict, step: int,
             if make_err:
                 return {"action_type": "approve"}
             return {"action_type": "flag", "field_name": "fraud"}
+        if "fraud_iban" not in flags:
+            if make_err:
+                return {"action_type": "approve"}
+            return {"action_type": "flag", "field_name": "fraud_iban"}
         return {"action_type": "reject"}
 
     return {"action_type": "reject"}

@@ -1,17 +1,45 @@
 ---
 title: Enterprise AP Environment
-emoji: 🏢
 colorFrom: purple
 colorTo: blue
 sdk: docker
 pinned: false
 ---
 
-# Enterprise AP Environment 🏢
+# Enterprise AP Environment
 
-An OpenEnv-compatible RL/Agent training environment for the **Meta AI Hackathon Grand Finale**.
+**An OpenEnv-compatible RL/Agent training environment**
+**Team SHIPWithTEA : Prachi and Dharmendra**
 
 The AI agent is dropped into a realistic enterprise **Accounts Payable department** and must process invoices by interacting across multiple applications: an email inbox, an ERP system (with schema drift), and vendor communication channels.
+
+---
+
+## Key Features
+
+- **Multi-App Workflow:** Forces the agent to synthesize information across different systems (unstructured email inbox and structured ERP database).
+- **Adversarial Security (Phishing):** Tests the agent's attention to detail by deploying lookalike-domain phishing attacks (e.g., `techsuppIies.com` vs. `techsupplies.com`).
+- **Dynamic Schema Drift:** The ERP API silently alters its required fields mid-episode, requiring the agent to parse error messages, recover, and adapt dynamically.
+- **Multi-Turn Interactive Resolution:** Agents don't just extract data; they identify discrepancies and email a simulated reactive vendor actor to solicit a corrected invoice, then re-process the updated data.
+- **TRL/Unsloth Training Integration:** Proves learnability with an integrated Hugging Face TRL & Unsloth `GRPOTrainer` pipeline.
+
+---
+
+## Quick Links
+- **[HuggingFace Writeup & Details](https://huggingface.co/Prachi-2601/Multi-App-RL-Env-Invoice-Processing-Schema-Drift-Fraud-Detection-Vendor-Negotiation)**
+- **[Live Demo on HuggingFace Spaces](https://huggingface.co/spaces/decent-cow26/invoice-env)**
+
+---
+
+##  The Problem
+Enterprise Accounts Payable (AP) departments process hundreds of invoices every day. The work looks repetitive on the surface — read the invoice, check it against the Purchase Order, approve or reject — but the reality is far more complicated. Vendors send incorrect amounts. ERP systems change their APIs without warning. Duplicate invoices slip through undetected. And increasingly, attackers send fraudulent invoices from lookalike domains that differ from the real vendor by a single character.
+
+Current rule-based automation systems catch obvious errors but fail at anything that requires judgment. We built this environment to see if a language model could be trained to handle this entire workflow — and get measurably better at it over time.
+
+---
+
+##  Why It Matters
+Most RL environments for language models test a single capability — math reasoning, code generation, or factual retrieval. This environment tests a compound skill: multi-step, multi-app reasoning under adversarial conditions. The failure modes (approving a fraudulent invoice, missing a duplicate, failing to negotiate) are the exact failures that cost real organizations real money.
 
 ---
 
@@ -31,11 +59,11 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 
 | Task | Difficulty | Description |
 |------|-----------|-------------|
-| `easy` | Beginner | Read email → Query ERP → Extract 7 fields → Approve |
+| `easy` | Beginner | Read email → Query ERP → Extract 8 fields → Approve |
 | `medium` | Medium | Same as easy, but detect a subtle line-item price mismatch |
 | `hard` | Hard | **Schema Drift**: ERP rejects `vendor_name`, requires `vendor_tax_id`. Also detect duplicate invoice. |
 | `expert_negotiation` | Expert | Invoice is overpriced. **Email the vendor** (simulated reactive actor), get a corrected invoice dynamically injected into the inbox, re-extract all fields, then approve. |
-| `expert_fraud` | Expert | Perfect invoice but sender is `@techsuppIies.com` (capital-I lookalike). Flag as fraud. |
+| `expert_fraud` | Expert | Sender is `@techsuppIies.com` (lookalike) AND uses a fraudulent IBAN. Flag both and reject. |
 
 ---
 
@@ -47,7 +75,7 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 | `query_erp` | `api_endpoint`, `api_payload` | Query the ERP database |
 | `extract` | `field_name`, `field_value` | Store an extracted invoice field |
 | `match_po` | — | Cross-reference invoice total vs PO |
-| `flag` | `field_name` | Raise an issue flag (`price_mismatch`, `fraud`, `duplicate_invoice`, `tax_mismatch`) |
+| `flag` | `field_name` | Raise an issue flag (`price_mismatch`, `fraud`, `fraud_iban`, `duplicate_invoice`, `tax_mismatch`) |
 | `match_duplicate` | — | Check if invoice was previously processed |
 | `send_email` | `email_id`, `email_subject`, `email_body` | Email a vendor to negotiate |
 | `approve` / `reject` | — | Final decision — ends the episode |
@@ -79,7 +107,7 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 ### Final Grading (40 / 30 / 30)
 | Component | Weight |
 |-----------|--------|
-| Field extraction accuracy (7 fields) | 40% |
+| Field extraction accuracy (8 fields) | 40% |
 | Correct flags raised / negotiation done | 30% |
 | Correct approve/reject decision | 30% |
 
@@ -139,6 +167,31 @@ docker run -p 7860:7860 enterprise-ap-env
 
 ---
 
+## Try It Interactively
+
+Once the server is running (see Quick Start above), you can drive the environment with plain HTTP calls. The full Swagger UI is available at **`http://localhost:7860/docs`**.
+
+Here is a complete `expert_fraud` episode in three curl commands:
+
+```bash
+# 1. Start a new episode
+curl -s -X POST "http://localhost:7860/reset?task_name=expert_fraud" | python -m json.tool
+
+# 2. Read the email (note the sender — is it a real domain?)
+curl -s -X POST "http://localhost:7860/step?session_id=<YOUR_SESSION_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"action_type": "read_email", "email_id": "email_006"}' | python -m json.tool
+
+# 3. Query ERP and compare IBANs — then flag and reject
+curl -s -X POST "http://localhost:7860/step?session_id=<YOUR_SESSION_ID>" \
+  -H "Content-Type: application/json" \
+  -d '{"action_type": "query_erp", "api_endpoint": "/api/v1/po", "api_payload": {"vendor_name": "TechSupplies Inc."}}' | python -m json.tool
+```
+
+> Replace `<YOUR_SESSION_ID>` with the `session_id` returned by the `/reset` call.
+
+---
+
 ## Project Structure
 
 ```
@@ -163,15 +216,17 @@ enterprise-ap-env/
 ### Rule-Based Reference Agent (`train.py`)
 
 A deterministic rule-based agent validates environment correctness across all 5 tasks over 60 episodes.
-All tasks achieve **0.94 final average reward**, confirming the reward shaping works as designed.
+All tasks exceed their target thresholds, confirming the reward shaping works as designed.
+
+![Reward Curves](./reward_curves.png)
 
 | Task | Final Avg Reward | Target | Status |
 |------|-----------------|--------|--------|
-| easy | 0.94 | 0.85 | PASS |
-| medium | 0.94 | 0.75 | PASS |
-| hard | 0.94 | 0.65 | PASS |
-| expert_negotiation | 0.94 | 0.70 | PASS |
-| expert_fraud | 0.94 | 0.70 | PASS |
+| easy | 0.95 | 0.85 | PASS |
+| medium | 0.95 | 0.75 | PASS |
+| hard | 0.95 | 0.65 | PASS |
+| expert_negotiation | 0.975 | 0.70 | PASS |
+| expert_fraud | 0.95 | 0.70 | PASS |
 
 > The rule-based agent uses deterministic regex parsing and a decaying noise schedule to simulate a learning curve.
 > It serves as a correctness oracle for the environment — not the research contribution.
@@ -185,13 +240,13 @@ drives the environment via the OpenAI-compatible REST interface with no task-spe
 
 | Task | LLM Score | Steps | Result |
 |------|-----------|-------|--------|
-| easy | **0.99** | 14 | PASS — extracted all 7 fields, approved correctly |
-| expert_fraud | **0.99** | 14 | PASS — detected lookalike domain, flagged fraud, rejected |
+| easy | **0.99** | 14 | PASS — extracted all 8 fields, approved correctly |
+| expert_fraud | **0.99** | 14 | PASS — detected lookalike domain, flagged fraud & fraud_iban, rejected |
 
 Key observations from the `expert_fraud` run:
 - LLM read email from `billing@vertx.com` (lookalike for `vertex.com`)
-- Extracted all 7 invoice fields correctly
-- Independently flagged `fraud` (reward: +0.12 from environment)
+- Extracted all 8 invoice fields correctly (including the attacker's IBAN)
+- Independently flagged `fraud` and `fraud_iban`
 - Issued `reject` decision — episode complete
 
 > **The environment is the research contribution.** The rule-based agent validates reward correctness at 0.94.

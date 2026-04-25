@@ -58,6 +58,7 @@ WORKFLOW:
    - tax_mismatch    -> claimed tax rate is wrong: use flag action
    - duplicate_invoice -> invoice already processed: use match_duplicate action first, then flag
    - fraud           -> sender email domain is a lookalike (e.g. "techsuppIies.com" not "techsupplies.com"): use flag action
+   - fraud_iban      -> invoice Bank Account (IBAN) does NOT match the ERP vendor profile: use flag action
 5. For expert_negotiation: if invoice total > PO approved_amount, send email to vendor.
 6. Make EXACTLY ONE final decision: approve or reject. Never use any other action types.
 
@@ -93,7 +94,7 @@ Final decision (REQUIRED — ends the episode):
   {"action_type": "approve"}
   {"action_type": "reject"}
 
-Fields to extract: vendor_name, invoice_number, invoice_date, due_date, subtotal, tax_amount, total_amount
+Fields to extract: vendor_name, invoice_number, invoice_date, due_date, subtotal, tax_amount, total_amount, iban
 Respond with ONE JSON action at a time. No markdown fences. No explanation."""
 
 
