@@ -19,7 +19,7 @@ import requests
 
 # ── Config ────────────────────────────────────────────────────────────────────
 TASKS    = ["easy", "medium", "hard", "expert_negotiation", "expert_fraud"]
-EPISODES = 50
+EPISODES = 20
 ENV_URL  = os.getenv("ENV_URL", "http://localhost:7860")
 
 TASK_META = {
@@ -228,7 +228,7 @@ def run_episode_http(task_name: str, episode: int, total_episodes: int) -> float
 # ── Plot reward curves (dark theme) ──────────────────────────────────────────
 def plot_curves(all_rewards: dict, total_episodes: int):
     fig = plt.figure(figsize=(18, 10), facecolor="#11111b")
-    fig.suptitle("Enterprise AP-Env: Reward Curves Across All Tasks",
+    fig.suptitle("Enterprise AP-Env: Adaptive Curriculum Reward Curves",
                  fontsize=15, fontweight="bold", color="#cdd6f4", y=0.98)
 
     gs   = gridspec.GridSpec(2, 3, figure=fig, hspace=0.45, wspace=0.35)
@@ -241,13 +241,22 @@ def plot_curves(all_rewards: dict, total_episodes: int):
         target  = meta["target"]
         rewards = all_rewards[task]
 
-        win = max(3, total_episodes // 10)
+        ax.set_facecolor("#1e1e2e")
+        ax.set_title(task.replace("_", " ").title(),
+                     fontsize=11, fontweight="bold", color="#cdd6f4", pad=8)
+                     
+        if not rewards:
+            ax.text(0.5, 0.5, "No Data (Skipped)", color="#6c7086", ha="center", va="center", transform=ax.transAxes)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            continue
+
+        win = max(3, len(rewards) // 10)
         smoothed = [
             sum(rewards[max(0, j - win): j + 1]) / len(rewards[max(0, j - win): j + 1])
             for j in range(len(rewards))
         ]
 
-        ax.set_facecolor("#1e1e2e")
         ax.plot(rewards,  alpha=0.25, color=color, linewidth=1)
         ax.plot(smoothed, color=color, linewidth=2.5, label="Smoothed")
         ax.axhline(y=target, color="#a6e3a1", linestyle="--",
@@ -260,9 +269,7 @@ def plot_curves(all_rewards: dict, total_episodes: int):
                     fontsize=8, color=color,
                     arrowprops=dict(arrowstyle="->", color=color, lw=1.0))
 
-        ax.set_title(task.replace("_", " ").title(),
-                     fontsize=11, fontweight="bold", color="#cdd6f4", pad=8)
-        ax.set_xlabel("Episode",  color="#6c7086", fontsize=9)
+        ax.set_xlabel("Episode (Task-Specific)",  color="#6c7086", fontsize=9)
         ax.set_ylabel("Reward",   color="#6c7086", fontsize=9)
         ax.set_ylim(0, 1.1)
         ax.tick_params(colors="#6c7086", labelsize=8)
@@ -282,48 +289,74 @@ def plot_curves(all_rewards: dict, total_episodes: int):
 def train(use_http: bool = False, episodes: int = EPISODES):
     runner = run_episode_http if use_http else run_episode_local
     mode   = "HTTP" if use_http else "local"
+    total_episodes = episodes * len(TASKS)
 
-    print("=" * 56)
-    print("  EnterpriseAP-Env  -  Training Script")
-    print(f"  Mode: {mode}   Episodes: {episodes}")
-    print("=" * 56)
+    print("=" * 64)
+    print("  EnterpriseAP-Env  -  Adaptive Curriculum Training (Theme #4)")
+    print(f"  Mode: {mode}   Total Episodes: {total_episodes}")
+    print("=" * 64)
 
-    all_rewards = {}
-    for task in TASKS:
-        meta = TASK_META[task]
-        print(f"\n  Task: {task}")
-        rewards = []
-        for ep in range(episodes):
-            r = runner(task, ep, episodes)
-            rewards.append(r)
-            if (ep + 1) % max(1, episodes // 5) == 0:
-                win = max(5, episodes // 10)
-                avg = sum(rewards[-win:]) / len(rewards[-win:])
-                filled = int(avg * 20)
-                bar = "#" * filled + "-" * (20 - filled)
-                print(f"  Ep {ep+1:>3}/{episodes} | [{bar}] {avg:.3f}")
-        all_rewards[task] = rewards
-        final  = sum(rewards[-max(5, episodes // 10):]) / max(5, episodes // 10)
-        status = "PASS" if final >= meta["target"] else "BELOW TARGET"
-        print(f"  Final avg: {final:.3f}  [{status}]")
+    all_rewards = {t: [] for t in TASKS}
+    
+    current_task_idx = 0
+    recent_scores = []
 
-    plot_curves(all_rewards, episodes)
+    for ep in range(total_episodes):
+        current_task = TASKS[current_task_idx]
+        
+        # Run episode with global decay logic
+        r = runner(current_task, ep, total_episodes)
+        all_rewards[current_task].append(r)
+        recent_scores.append(r)
+        
+        # Logging
+        if len(recent_scores) > 0:
+            avg = sum(recent_scores) / len(recent_scores)
+            filled = int(avg * 20)
+            bar = "#" * filled + "-" * (20 - filled)
+            print(f"  Ep {ep+1:>3}/{total_episodes} | Task: {current_task:<18} | [{bar}] {avg:.3f}")
 
-    final_scores = {
-        t: round(sum(r[-max(5, episodes // 10):]) / max(5, episodes // 10), 3)
-        for t, r in all_rewards.items()
-    }
+        # Adaptive Curriculum Logic (Theme #4)
+        if len(recent_scores) >= 5:
+            avg_score = sum(recent_scores[-5:]) / 5
+            
+            if avg_score >= 0.88 and current_task_idx < len(TASKS) - 1:
+                next_task = TASKS[current_task_idx + 1]
+                print(f"\n  [++] [CURRICULUM UPDATE] Agent mastered '{current_task}'. PROMOTING to '{next_task}'!\n")
+                current_task_idx += 1
+                recent_scores = []  # Reset history for new level
+            elif avg_score <= 0.50 and current_task_idx > 0:
+                prev_task = TASKS[current_task_idx - 1]
+                print(f"\n  [--] [CURRICULUM UPDATE] Agent struggling with '{current_task}'. DEMOTING to '{prev_task}'.\n")
+                current_task_idx -= 1
+                recent_scores = []  # Reset history for new level
+            else:
+                recent_scores.pop(0) # Keep sliding window of 5
+
+    plot_curves(all_rewards, total_episodes)
+
+    final_scores = {}
+    for t, r_list in all_rewards.items():
+        if len(r_list) >= 5:
+            final_scores[t] = round(sum(r_list[-5:]) / 5, 3)
+        elif len(r_list) > 0:
+            final_scores[t] = round(sum(r_list) / len(r_list), 3)
+        else:
+            final_scores[t] = 0.0
+
     with open("training_results.json", "w") as f:
-        json.dump({"episodes": episodes, "mode": mode,
+        json.dump({"episodes": total_episodes, "mode": mode,
                    "final_scores": final_scores,
                    "all_rewards": all_rewards}, f, indent=2)
 
-    print("\n" + "=" * 56)
+    print("\n" + "=" * 64)
     print("  FINAL TRAINING RESULTS")
-    print("=" * 56)
+    print("=" * 64)
     for t, s in final_scores.items():
         status = "PASS" if s >= TASK_META[t]["target"] else "FAIL"
-        print(f"  [{status}] {t:<22} {s:.3f}")
+        if len(all_rewards[t]) == 0:
+            status = "SKIPPED"
+        print(f"  [{status:^7}] {t:<22} {s:.3f} (Total Eps: {len(all_rewards[t])})")
     print("\nResults saved -> training_results.json")
 
 
