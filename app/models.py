@@ -1,16 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
-class InvoiceField(BaseModel):
-    vendor_name:str
-    invoice_number:str
-    invoice_date:str
-    due_date:str
-    subtotal:float
-    tax_amount:float
-    total_amount:float
-    line_items:List[Dict[str,Any]]
-
 class Action(BaseModel):
     action_type:str 
     field_name:Optional[str]=None

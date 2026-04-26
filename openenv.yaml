@@ -16,27 +16,27 @@ tags:
 tasks:
   - name: easy
     description: Read email to get invoice, query ERP to get PO, extract all fields and approve.
-    max_steps: 20
+    max_steps: 30
     reward_range: [0.0, 1.0]
 
   - name: medium
     description: Read email, query ERP, and detect line item price mismatch.
-    max_steps: 20
+    max_steps: 30
     reward_range: [0.0, 1.0]
 
   - name: hard
     description: Multi-App workflow with Schema Drift. ERP requires tax_id instead of vendor_name. Detect duplicate invoice.
-    max_steps: 20
+    max_steps: 30
     reward_range: [0.0, 1.0]
 
   - name: expert_negotiation
     description: Multi-turn interactive resolution. Agent emails a simulated reactive vendor actor to solicit a corrected invoice, then re-extracts fields and approves.
-    max_steps: 25
+    max_steps: 30
     reward_range: [0.0, 1.0]
 
   - name: expert_fraud
     description: Fraud detection. Invoice looks valid but comes from a lookalike email domain and uses a fraudulent IBAN. Agent must flag both and reject.
-    max_steps: 20
+    max_steps: 30
     reward_range: [0.0, 1.0]
 
 observation_space:

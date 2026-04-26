@@ -289,49 +289,47 @@ def plot_curves(all_rewards: dict, total_episodes: int):
 def train(use_http: bool = False, episodes: int = EPISODES):
     runner = run_episode_http if use_http else run_episode_local
     mode   = "HTTP" if use_http else "local"
-    total_episodes = episodes * len(TASKS)
+    total_episodes = episodes
 
     print("=" * 64)
-    print("  EnterpriseAP-Env  -  Adaptive Curriculum Training (Theme #4)")
+    print("  EnterpriseAP-Env  -  Adaptive Curriculum Training")
     print(f"  Mode: {mode}   Total Episodes: {total_episodes}")
+    print(f"  Curriculum: {' -> '.join(TASKS)}")
     print("=" * 64)
 
     all_rewards = {t: [] for t in TASKS}
-    
+
     current_task_idx = 0
     recent_scores = []
 
     for ep in range(total_episodes):
         current_task = TASKS[current_task_idx]
-        
-        # Run episode with global decay logic
+
         r = runner(current_task, ep, total_episodes)
         all_rewards[current_task].append(r)
         recent_scores.append(r)
-        
-        # Logging
-        if len(recent_scores) > 0:
-            avg = sum(recent_scores) / len(recent_scores)
-            filled = int(avg * 20)
-            bar = "#" * filled + "-" * (20 - filled)
-            print(f"  Ep {ep+1:>3}/{total_episodes} | Task: {current_task:<18} | [{bar}] {avg:.3f}")
+
+        avg = sum(recent_scores) / len(recent_scores)
+        filled = int(avg * 20)
+        bar = "#" * filled + "-" * (20 - filled)
+        print(f"  Ep {ep+1:>3}/{total_episodes} | Task: {current_task:<22} | [{bar}] {avg:.3f}")
 
         # Adaptive Curriculum Logic (Theme #4)
         if len(recent_scores) >= 5:
             avg_score = sum(recent_scores[-5:]) / 5
-            
+
             if avg_score >= 0.88 and current_task_idx < len(TASKS) - 1:
                 next_task = TASKS[current_task_idx + 1]
-                print(f"\n  [++] [CURRICULUM UPDATE] Agent mastered '{current_task}'. PROMOTING to '{next_task}'!\n")
+                print(f"\n  [++] [CURRICULUM] Mastered '{current_task}' (avg={avg_score:.2f}). PROMOTING to '{next_task}'!\n")
                 current_task_idx += 1
-                recent_scores = []  # Reset history for new level
+                recent_scores = []
             elif avg_score <= 0.50 and current_task_idx > 0:
                 prev_task = TASKS[current_task_idx - 1]
-                print(f"\n  [--] [CURRICULUM UPDATE] Agent struggling with '{current_task}'. DEMOTING to '{prev_task}'.\n")
+                print(f"\n  [--] [CURRICULUM] Struggling with '{current_task}' (avg={avg_score:.2f}). DEMOTING to '{prev_task}'.\n")
                 current_task_idx -= 1
-                recent_scores = []  # Reset history for new level
+                recent_scores = []
             else:
-                recent_scores.pop(0) # Keep sliding window of 5
+                recent_scores.pop(0)
 
     plot_curves(all_rewards, total_episodes)
 
