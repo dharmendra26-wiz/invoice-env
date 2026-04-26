@@ -23,8 +23,7 @@ This is not a benchmark about answering questions. It is a benchmark about survi
 | **Live Demo (HuggingFace Space)** | [spaces/decent-cow26/invoice-env](https://huggingface.co/spaces/decent-cow26/invoice-env) |
 | **Model Card & Full Writeup** | [Prachi-2601/Multi-App-RL-Env-Invoice-Processing…](https://huggingface.co/Prachi-2601/Multi-App-RL-Env-Invoice-Processing-Schema-Drift-Fraud-Detection-Vendor-Negotiation) |
 | **GRPO Training Notebook (Colab T4)** | [`colab_rl_training.ipynb`](./colab_rl_training.ipynb) — full RL loop in ~35 min |
-| **Demo Video** | *(paste your YouTube / Loom link here)* |
-| **GitHub Source** | *(paste your repo link here)* |
+| **GitHub Source** | *(https://github.com/dharmendra26-wiz/Enterprise-AP-Environment)* |
 
 ---
 
