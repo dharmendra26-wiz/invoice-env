@@ -79,16 +79,57 @@ The environment reliably separates weak and strong agents. The hardest tasks (Ex
 
 ![Reference Agent Reward Curves — Weak (8B noise) vs Strong (70B noise)](./8B_curves.png)
 
-#### Real LLM Validation (Llama-3.1-8B via HuggingFace API)
+#### Real LLM Benchmark — Llama-3.1-8B-Instruct (25 Live Episodes, 5 per task)
 
-A real LLM agent (`meta-llama/Llama-3.1-8B-Instruct`) was driven against the live FastAPI server using `inference.py` with no task-specific hardcoding. Results from single-episode runs:
+A real `meta-llama/Llama-3.1-8B-Instruct` agent was driven against the live FastAPI server using `inference.py` with zero task-specific hardcoding. Every episode used a procedurally generated, unique invoice.
 
-| Task | Score | Outcome |
-|------|-------|---------|
-| Easy | 0.99 | PASS — all 8 fields extracted, correct approval |
-| Expert Fraud | 0.99 | PASS — detected `billing@vertx.com` lookalike, flagged `fraud` + `fraud_iban`, rejected |
+| Task | Avg Score | Result | Key Behaviour |
+|------|-----------|--------|---------------|
+| Easy | **0.10** | FAIL | Correctly extracts all 8 fields and queries ERP, but then hallucinates spurious flags (`price_mismatch`, `fraud_iban`, etc.) on a clean invoice — never issues `approve` within 25 steps |
+| Medium | **0.99** | PASS | Price mismatch detected and invoice rejected in all 5 episodes, in 13–14 steps |
+| Hard | **0.99** | PASS | Schema drift handled perfectly — v1 ERP rejected, model auto-retries with `vendor_tax_id` on v2 |
+| Expert Negotiation | **0.23** | FAIL | Model correctly identifies the price discrepancy and sends a vendor email, but cannot close the multi-turn negotiation loop before the step limit |
+| Expert Fraud | **0.88** | PASS | Fraudulent IBAN flagged and payment rejected in all 5 episodes; 1/5 episodes also caught the lookalike domain |
+| **Average** | **0.64** | — | — |
 
-The environment is live and LLM-accessible via the OpenAI-compatible REST interface.
+![Real LLM Reward Curves — Llama-3.1-8B-Instruct, 5 episodes per task](./Llama_3.1_8B_Instruct_real_curves.png)
+
+**What this reveals about the environment's discriminative power:**
+
+The benchmark produces a capability profile, not a single number. The 8B model excels at pattern-detection and schema-recovery tasks (Hard: 0.99, Medium: 0.99, Fraud: 0.88) but fails at two distinct failure modes:
+
+1. **Workflow adherence (Easy: 0.10):** The model extracts all 8 fields perfectly and queries the ERP correctly, then gets stuck in a loop of hallucinated flags on a clean invoice. It "knows too much" — it keeps looking for a problem that isn't there. GRPO training on the `approve` state specifically addresses this failure.
+
+2. **Multi-turn planning (Negotiation: 0.23):** The model recognises the price discrepancy and correctly initiates vendor contact, but cannot read the updated inbox, re-extract fields from the corrected invoice, and close with an `approve` action — all within the step budget. This is precisely the multi-turn planning task that no standard benchmark tests.
+
+This is exactly the kind of signal a useful benchmark should produce — not a single accuracy number, but a precise capability profile that tells a researcher where the model breaks down under enterprise conditions.
+
+---
+
+### GRPO Reinforcement Learning Training
+
+The environment is not just a benchmark — it is a training signal. `colab_rl_training.ipynb` trains `meta-llama/Llama-3.1-8B-Instruct` (4-bit quantized via Unsloth) directly on the AP environment's reward logic using **GRPO** (Group Relative Policy Optimization) from HuggingFace TRL.
+
+**Why GRPO and not PPO?** PPO requires a separate reference model and value head, which doubles VRAM usage and is unstable for short training runs. GRPO generates a group of candidate responses per prompt, ranks them by reward, and updates the model to prefer the better ones — no reference model required. It runs on a free T4 GPU in under 35 minutes.
+
+**Training setup:**
+- Base model: `unsloth/llama-3-8b-Instruct-bnb-4bit` (4-bit, ~5 GB VRAM)
+- LoRA adapters (r=16) on all projection layers — only 1% of parameters are trainable
+- 4 candidate actions generated per AP state prompt
+- Reward function identical to `environment.py` step logic
+- 125 training prompts spanning all 5 AP workflow stages
+- 100 training steps (~25 min on T4)
+
+The reward function scores each JSON output against the AP environment logic:
+
+| Action quality | Reward |
+|----------------|--------|
+| Invalid JSON / hallucination | 0.0 |
+| Wrong action for this workflow state | 0.1 |
+| Correct action type, missing required fields | 0.5 |
+| Correct action + all required fields | 1.0 |
+
+Run the training yourself: open `colab_rl_training.ipynb` in Google Colab (T4 GPU), run all cells. You will see the reward curve trend upward and the loss curve trend downward within 100 steps.
 
 ---
 

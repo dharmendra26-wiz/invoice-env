@@ -1,0 +1,48 @@
+{
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "episodes_per_task": 5,
+  "final_scores": {
+    "easy": 0.1,
+    "medium": 0.99,
+    "hard": 0.99,
+    "expert_negotiation": 0.22999999999999998,
+    "expert_fraud": 0.8779999999999999
+  },
+  "all_rewards": {
+    "easy": [
+      0.1,
+      0.1,
+      0.1,
+      0.1,
+      0.1
+    ],
+    "medium": [
+      0.99,
+      0.99,
+      0.99,
+      0.99,
+      0.99
+    ],
+    "hard": [
+      0.99,
+      0.99,
+      0.99,
+      0.99,
+      0.99
+    ],
+    "expert_negotiation": [
+      0.2,
+      0.25,
+      0.2,
+      0.25,
+      0.25
+    ],
+    "expert_fraud": [
+      0.85,
+      0.85,
+      0.99,
+      0.85,
+      0.85
+    ]
+  }
+}

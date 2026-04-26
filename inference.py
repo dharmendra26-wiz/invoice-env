@@ -213,6 +213,10 @@ def run_task(task_name: str) -> float:
         messages.append({"role": "assistant", "content": action_str})
         messages.append({"role": "user",      "content": feedback})
 
+        # Keep context window bounded: system prompt + first user msg + last 8 turns
+        if len(messages) > 18:
+            messages = messages[:2] + messages[-16:]
+
     # --- final score ---
     if 'result' in dir() and isinstance(result, dict):
         final_score = result.get("info", {}).get("final_score", max(rewards) if rewards else 0.01)

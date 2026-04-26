@@ -3,7 +3,8 @@ import json
 import statistics
 from inference import run_task, MODEL_NAME
 
-os.environ["HF_TOKEN"] = "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"
+if not os.environ.get("HF_TOKEN"):
+    raise RuntimeError("HF_TOKEN environment variable is not set. Export it before running: export HF_TOKEN=hf_...")
 # Use the local API server if running locally, or hit the HF space directly
 os.environ["ENV_URL"] = "http://localhost:7860"
 

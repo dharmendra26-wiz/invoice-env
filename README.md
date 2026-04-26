@@ -21,13 +21,14 @@ The AI agent is dropped into a realistic enterprise **Accounts Payable departmen
 - **Adversarial Security (Phishing):** Tests the agent's attention to detail by deploying lookalike-domain phishing attacks (e.g., `techsuppIies.com` vs. `techsupplies.com`).
 - **Dynamic Schema Drift:** The ERP API silently alters its required fields mid-episode, requiring the agent to parse error messages, recover, and adapt dynamically.
 - **Multi-Turn Interactive Resolution:** Agents don't just extract data; they identify discrepancies and email a simulated reactive vendor actor to solicit a corrected invoice, then re-process the updated data.
-- **TRL/Unsloth Training Integration:** Proves learnability with an integrated Hugging Face TRL & Unsloth `GRPOTrainer` pipeline.
+- **GRPO RL Training Pipeline:** `colab_rl_training.ipynb` trains `llama-3-8b-Instruct` (4-bit, Unsloth) using TRL's `GRPOTrainer`. The reward function is distilled directly from `environment.py` — training connects to the same reward logic as evaluation.
 
 ---
 
 ## Quick Links
-- **[HuggingFace Writeup & Details](https://huggingface.co/Prachi-2601/Multi-App-RL-Env-Invoice-Processing-Schema-Drift-Fraud-Detection-Vendor-Negotiation)**
 - **[Live Demo on HuggingFace Spaces](https://huggingface.co/spaces/decent-cow26/invoice-env)**
+- **[HuggingFace Writeup & Model Card](https://huggingface.co/Prachi-2601/Multi-App-RL-Env-Invoice-Processing-Schema-Drift-Fraud-Detection-Vendor-Negotiation)**
+- **[GRPO Training Notebook (Colab)](./colab_rl_training.ipynb)** — Trains `llama-3-8b-Instruct` via Unsloth + TRL GRPOTrainer
 
 ---
 
@@ -216,6 +217,42 @@ enterprise-ap-env/
 
 ---
 
+## RL Training Pipeline (Unsloth + TRL GRPO)
+
+The Colab notebook [`colab_rl_training.ipynb`](./colab_rl_training.ipynb) trains `llama-3-8b-Instruct` (4-bit quantized) to solve the AP environment using **GRPO** (Group Relative Policy Optimization).
+
+**How it works:**
+1. For each AP workflow state prompt, the model generates **4 candidate JSON actions**.
+2. Each action is scored by the AP environment reward function (distilled from `environment.py`).
+3. GRPO updates the model to assign higher probability to higher-reward actions — reward trending up, loss trending down.
+
+| Component | Choice |
+|-----------|--------|
+| Base model | `unsloth/llama-3-8b-Instruct-bnb-4bit` (4-bit, ~5 GB) |
+| Fine-tuning | LoRA r=16 (~1% trainable params) |
+| RL algorithm | GRPOTrainer (TRL) — no reference model needed |
+| Dataset | 125 synthetic AP workflow state prompts |
+| GPU requirement | Free T4 (~20–35 min for 100 steps) |
+
+**Training progress — Loss ↓ and Reward ↑ over 100 steps:**
+
+![GRPO Training Curves — Llama-3.1-8B + LoRA on Colab T4](./grpo_training_curves.png)
+
+> Training loss drops from ~0.0025 → **0.001** final. Average reward climbs from near 0.2 and stabilises at **0.48–0.65**, approaching the 0.70 target threshold. Both trends confirm the AP environment produces a genuine, learnable gradient signal.
+
+**Before vs. After GRPO fine-tuning (peak episode reward):**
+
+![RL Results — Before vs After Training](./rl_training_results_final.png)
+
+| Task | Before Training | After GRPO | Improvement |
+|------|----------------|------------|-------------|
+| Easy | 0.26 | **0.88** | +0.62 (+238%) |
+| Expert Negotiation | 0.18 | **0.78** | +0.60 (+333%) |
+
+**Run it yourself:** Open `colab_rl_training.ipynb` in Google Colab → Runtime → T4 GPU → Run All.
+
+---
+
 ## Evaluation Results
 
 ### Reference Agent Validation — Discriminative Power (100 Episodes)
@@ -252,18 +289,21 @@ python inference.py --all --episodes 10
 python plot_llm_results.py   # auto-detects the output file
 ```
 
-| Task | LLM Score | Steps | Result |
-|------|-----------|-------|--------|
-| easy | **0.99** | 14 | PASS — extracted all 8 fields, approved correctly |
-| expert_fraud | **0.99** | 14 | PASS — detected lookalike domain, flagged `fraud` + `fraud_iban`, rejected |
+**25 real episodes, 5 per task — `meta-llama/Llama-3.1-8B-Instruct` via HuggingFace Router API:**
 
-Key observations from the `expert_fraud` run:
-- LLM read email from `billing@vertx.com` (lookalike for `vertex.com`)
-- Extracted all 8 invoice fields correctly (including the attacker's fraudulent IBAN)
-- Independently flagged `fraud` and `fraud_iban` — no hints given
-- Issued `reject` decision — episode complete, score 0.99
+| Task | Avg Score | Result | Key Behaviour |
+|------|-----------|--------|---------------|
+| easy | **0.10** | FAIL | Correctly extracts all 8 fields + queries ERP, but then hallucinates spurious flags instead of approving — never issues `approve` before hitting the 25-step limit |
+| medium | **0.99** | PASS | Price mismatch detected and rejected in all 5 episodes, 13–14 steps |
+| hard | **0.99** | PASS | Schema drift handled perfectly in all 5 episodes — v1 ERP rejected, auto-retries with `vendor_tax_id` on v2 |
+| expert_negotiation | **0.23** | FAIL | Model sends `send_email` to vendor (picks up the intent) but cannot close the multi-turn negotiation loop before step limit |
+| expert_fraud | **0.88** | PASS | IBAN fraud flagged and rejected in all 5 episodes; 1/5 episodes also caught the lookalike domain (0.99) |
+| **Average** | **0.64** | — | — |
 
-> **The environment is the research contribution.** The reference agent validates reward correctness.
-> The LLM agent establishes the actual baseline — 0.99 on clean and fraud detection tasks.
+![Real LLM Reward Curves — Llama-3.1-8B-Instruct, 5 episodes per task](./Llama_3.1_8B_Instruct_real_curves.png)
+
+The benchmark produces a **capability profile**, not a single score. The 8B model excels at pattern-detection and schema-recovery tasks (Hard: 0.99, Medium: 0.99, Fraud: 0.88) but fails at workflow adherence (Easy: can't `approve`) and multi-turn planning (Negotiation: can't close the loop). This is exactly the discriminative signal a useful benchmark should provide.
+
+> **The environment is the research contribution.** It exposes precisely where a model breaks down under enterprise conditions — and which failure modes GRPO fine-tuning should target.
 
 Built for the **Meta AI Hackathon Grand Finale 2026**.
