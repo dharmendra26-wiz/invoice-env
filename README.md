@@ -173,6 +173,19 @@ docker run -p 7860:7860 enterprise-ap-env
 
 ---
 
+## Gradio Demo — Two Agent Modes
+
+The Gradio dashboard (`python app/demo.py`) supports two modes and **switches automatically** based on whether you provide an HF token:
+
+| Mode | How to activate | Who plays the episode |
+|------|----------------|----------------------|
+| **Scripted Agent** (default) | Open the Space or run `python app/demo.py` — no token needed | A deterministic rule-based reference agent plays automatically. Always works. |
+| **Autonomous LLM Agent** | Paste your HuggingFace token + model name in the sidebar and click Run | Any HF-compatible LLM drives every action live — Llama, Mistral, Qwen, your own fine-tuned model, anything. |
+
+> No token → scripted agent runs automatically. Token + model name → your chosen LLM takes over. The environment, reward function, and observation format are **identical in both modes** — plug in any model and benchmark it instantly, no integration code needed.
+
+---
+
 ## Try It Interactively
 
 Once the server is running (see Quick Start above), you can drive the environment with plain HTTP calls. The full Swagger UI is available at **`http://localhost:7860/docs`**.

@@ -455,13 +455,13 @@ def build_demo():
         agent_badge = (
             f"<span style='background:#1565c0;color:#fff;padding:3px 10px;"
             f"border-radius:4px;font-size:0.78em;font-weight:600;margin-left:10px;'>"
-            f"LLM: {MODEL_NAME.split('/')[-1]}</span>"
+            f"LLM Agent: {MODEL_NAME.split('/')[-1]}</span>"
         )
     else:
         agent_badge = (
-            "<span style='background:#1565c0;color:#fff;padding:3px 10px;"
+            "<span style='background:#388e3c;color:#fff;padding:3px 10px;"
             "border-radius:4px;font-size:0.78em;font-weight:600;margin-left:10px;'>"
-            "Autonomous Agent</span>"
+            "Rule-Based Reference Agent</span>"
         )
 
     with gr.Blocks(title="Enterprise AP-Env Demo", css=CSS) as demo:
