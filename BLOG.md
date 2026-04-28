@@ -21,7 +21,6 @@ We built that environment. Then we trained an LLM inside it and watched it learn
 | **Live Demo (HuggingFace Space)** | [spaces/decent-cow26/invoice-env](https://huggingface.co/spaces/decent-cow26/invoice-env) |
 | (Multi-App-RL-Env-Invoice-Processing-Schema-Drift-Fraud-Detection-Vendor-Negotiation) |
 | **GRPO Training Notebook (Colab T4)** | [`colab_rl_training.ipynb`](./colab_rl_training.ipynb) — full RL loop in ~35 min |
-
 | **GitHub Source** | *(https://github.com/dharmendra26-wiz/Enterprise-AP-Environment)* |
 
 ---
